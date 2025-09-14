@@ -13,7 +13,6 @@ Our group is interested in AI music generation via MIDI files. MIDI files contai
 - Motivation  
 	- Interest in both music and machine learning  
 	- MIDI allows for incremental, user-driven editing  
-	- Existing models generate audio, not symbolic music  
 - Challenges  
 	- Limited genre/emotion labels in XMIDI dataset  
 	- Need to supplement data with less-labeled datasets  
