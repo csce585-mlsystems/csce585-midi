@@ -8,25 +8,7 @@ from itertools import chain
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 
-MIDI_PATH = Path("./data/midi")
-OUT_PATH = Path("./data/tokens")
-MAX_LEN = 1024
-SHARD_SIZE = 2000
-N_WORKERS = max(1, cpu_count() - 1)
-
-UNKNOWN_LABEL = "unknown"
-EMOTIONS = ["exciting", "warm", "happy", "romantic", "funny", "sad", "angry", "lazy", "quiet", "fear", "magnificent", UNKNOWN_LABEL]
-GENRES = ["rock", "pop", "country", "jazz", "classical", "folk", UNKNOWN_LABEL]
-
-# General MIDI has a bank of 128 instruments with set IDs, get all for tokenization, store drums as 128
-INSTRUMENTS = [f"prog_{p}" for p in range(129)]
-
-SPECIAL_TOKENS = {
-    "Genre": GENRES,
-    "Emotion": EMOTIONS,
-    "Instrument": INSTRUMENTS,
-}
-
+from config import MidiTokenization, TokenLabels
 ####
 def instruments_to_tokens(programs):
     return [f"prog_{p}" for p in programs]
@@ -65,7 +47,9 @@ def process_file(file):
     except Exception as e:
         return None, None, None, None, f"{file}: {e}"
 
-def preprocess_data(tokenizer, data_path=MIDI_PATH, out_path=OUT_PATH, shard_size=SHARD_SIZE, n_workers = N_WORKERS):
+def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH, 
+                    out_path=MidiTokenization.OUT_PATH, shard_size=MidiTokenization.SHARD_SIZE, 
+                    n_workers = MidiTokenization.N_WORKERS):
     out_path.mkdir(parents=True, exist_ok=True)
     
     files = list(data_path.rglob("*.mid")) + list(data_path.rglob("*.midi"))
@@ -96,7 +80,7 @@ def preprocess_data(tokenizer, data_path=MIDI_PATH, out_path=OUT_PATH, shard_siz
                 shard_items = []
                 shard_index += 1
 
-def preprocess_data_into_individuals(tokenizer, data_path=MIDI_PATH, out_path=OUT_PATH):
+def preprocess_data_into_individuals(tokenizer, data_path=MidiTokenization.MIDI_PATH, out_path=MidiTokenization.OUT_PATH):
     out_path.mkdir(parents=True, exist_ok=True)
     
     for f in data_path.glob("*.midi"):
@@ -115,19 +99,19 @@ def parse_filename(f: Path):
         emotion = s[1]
         genre = s[2]
 
-        if genre not in GENRES:
-            genre = UNKNOWN_LABEL
-        if emotion not in EMOTIONS:
-            emotion = UNKNOWN_LABEL
+        if genre not in TokenLabels.GENRES:
+            genre = TokenLabels.UNKNOWN_LABEL
+        if emotion not in TokenLabels.EMOTIONS:
+            emotion = TokenLabels.UNKNOWN_LABEL
         return genre, emotion
-    return UNKNOWN_LABEL, UNKNOWN_LABEL
+    return TokenLabels.UNKNOWN_LABEL, TokenLabels.UNKNOWN_LABEL
 
 if __name__ == "__main__":
     token_config = TokenizerConfig()
-    token_config.additional_params = SPECIAL_TOKENS
+    token_config.additional_params = TokenLabels.SPECIAL_TOKENS
 
     # tokenizer = REMI(token_config)
 
     print("Beginning Preprocessing")
-    preprocess_data(token_config)
+    # preprocess_data(token_config)
     print("Done with Preprocessing")
