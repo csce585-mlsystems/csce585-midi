@@ -1,4 +1,5 @@
 import time
+import math
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -26,6 +27,14 @@ def train():
                       Model.N_LAYERS, Model.N_HEADS, 
                       Model.D_FF, Model.SEQ_LEN).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=Training.LR, weight_decay=Training.WEIGHT_DECAY)
+
+    def lr_lambda(step):
+        if step < Training.WARMUP_STEPS:
+            return step / Training.WARMUP_STEPS
+        progress = (step - Training.WARMUP_STEPS) / max(1, Training.TOTAL_STEPS - Training.WARMUP_STEPS)
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
+    
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     Training.CHECKPOINT_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +64,7 @@ def train():
 
             total_loss = F.cross_entropy(
                 logits.reshape(-1, VOCAB_SIZE),
-                x[:, 1:].reshape(-1),
+                targets,
                 ignore_index=-100, reduction="sum"
             ) 
         real_tokens = (x[:, 1:] != -100).sum()
@@ -66,6 +75,7 @@ def train():
 
         if (step + 1) % Training.ACCUMULATION_STEPS == 0:
             optimizer.step()
+            scheduler.step()
             optimizer.zero_grad(set_to_none=True)
 
         if step % Training.PRINT_EVERY == 0:

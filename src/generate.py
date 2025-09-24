@@ -41,8 +41,7 @@ def generate(model, start_tokens, max_len=Model.SEQ_LEN, temperature=Generation.
 
     return x.squeeze().tolist()
 
-def tokens_to_midi(tokens, out_path):
-    print(TOKENIZER[22])
-    midi = TOKENIZER.decode([tokens])
-    midi.dump_midi(out_path)
+def sequence_to_midi(sequence, out_path):
+    sequence = TOKENIZER.decode([sequence])
+    sequence.dump_midi(out_path)
     print(f"saved MIDI to {out_path}")
