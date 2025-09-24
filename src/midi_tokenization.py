@@ -14,14 +14,11 @@ def instruments_to_tokens(programs):
     return [f"prog_{p}" for p in programs]
 
 def add_conditioning(tokens, genre, emotion, programs, tokenizer):
-    cond = [genre, emotion]
-    cond += instruments_to_tokens(programs)
-
+    cond = [genre, emotion] + instruments_to_tokens(programs)
     cond_ids = [tokenizer.vocab[e] for e in cond if e in tokenizer.vocab]
     return cond_ids + tokens
     
 def midi_to_tokens(file, tokenizer, genre, emotion):
-
     midi = symusic.Score(str(file))
     token_sequences = tokenizer(midi)
     #flatten each track into one sequence
@@ -34,9 +31,9 @@ def midi_to_tokens(file, tokenizer, genre, emotion):
 
 _worker_tokenizer = None
 
-def init_worker(tok_cfg):
+def init_worker(tokenizer_path):
     global _worker_tokenizer
-    _worker_tokenizer = REMI(tok_cfg)
+    _worker_tokenizer = REMI(params=tokenizer_path)
 
 def process_file(file):
     global _worker_tokenizer
@@ -58,8 +55,11 @@ def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH,
     shard_index = 0
     errors = []
 
+    tok_json = out_path / "tokenizer.json"
+    tokenizer.save(tok_json)
+
     print(f"Found {len(files)} MIDIS, using {n_workers} workers to parse")
-    with Pool(processes=n_workers, initializer=init_worker, initargs=(tokenizer,)) as pool:
+    with Pool(processes=n_workers, initializer=init_worker, initargs=(str(tok_json),)) as pool:
         for i, result in enumerate(
                 tqdm(pool.imap(process_file, files), total=len(files)), start=1
         ):
@@ -71,14 +71,13 @@ def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH,
                 continue
 
             shard_items.append((tokens, genre, emotion, programs))
-
-            shard_items.append(result)
             if (i + 1) % shard_size == 0 or (i + 1) == len(files):
                 shard_file = out_path / f"shard_{shard_index:03d}.pt"
                 torch.save(shard_items, shard_file)
                 print(f"saved {len(shard_items)} items to {shard_file}")
                 shard_items = []
                 shard_index += 1
+
 
 def preprocess_data_into_individuals(tokenizer, data_path=MidiTokenization.MIDI_PATH, out_path=MidiTokenization.OUT_PATH):
     out_path.mkdir(parents=True, exist_ok=True)
@@ -109,9 +108,8 @@ def parse_filename(f: Path):
 if __name__ == "__main__":
     token_config = TokenizerConfig()
     token_config.additional_params = TokenLabels.SPECIAL_TOKENS
-
-    # tokenizer = REMI(token_config)
+    tokenizer = REMI(token_config)
 
     print("Beginning Preprocessing")
-    # preprocess_data(token_config)
+    preprocess_data(tokenizer)
     print("Done with Preprocessing")
