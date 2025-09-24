@@ -1,7 +1,7 @@
 import torch, random
-from torch.utils.data import IterableDataset
-from src.config import Model, TOKENIZER
-
+from torch.utils.data import IterableDataset, DataLoader
+from src.config import Model, TOKENIZER, Training
+import pytorch_lightning as pl
 class MidiDataset(IterableDataset):
     def __init__(self, shard_files, seq_len = Model.SEQ_LEN, shuffle=True):
         self.shard_files = shard_files
@@ -52,3 +52,18 @@ class MidiDataset(IterableDataset):
                         tokens = torch.cat([tokens, torch.full((pad_len,), 0, dtype=torch.long)])
 
                     yield tokens
+
+class MidiDataModule(pl.LightningDataModule):
+    def __init__(self, shard_files, batch_size=Training.BATCH_SIZE, seq_len=Model.SEQ_LEN, num_workers=15):
+        super().__init__()
+        self.shard_files = shard_files
+        self.batch_size = batch_size
+        self.seq_len = seq_len
+
+    def train_dataloader(self):
+        dataset = MidiDataset(self.shard_files, self.seq_len, shuffle=True)
+        return DataLoader(dataset, batch_size=self.batch_size)
+    
+    def validate_dataloader(self):
+        dataset = MidiDataset(self.shard_files, self.seq_len, shuffle=False)
+        return DataLoader(dataset, batch_size=self.batch_size)
