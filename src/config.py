@@ -9,9 +9,32 @@ class MidiTokenization:
     N_WORKERS = max(1, cpu_count() - 1)
 
 class TokenLabels:
-    UNKNOWN_LABEL = "unknown"
-    EMOTIONS = ["exciting", "warm", "happy", "romantic", "funny", "sad", "angry", "lazy", "quiet", "fear", "magnificent", UNKNOWN_LABEL]
-    GENRES = ["rock", "pop", "country", "jazz", "classical", "folk", UNKNOWN_LABEL]
+    UNKNOWN_GENRE = "genre_unknown"
+    UNKNOWN_EMOTION = "emotion_unknown"
+    EMOTIONS = [
+        "emotion_exciting", 
+        "emotion_warm", 
+        "emotion_happy", 
+        "emotion_romantic", 
+        "emotion_funny", 
+        "emotion_sad", 
+        "emotion_angry", 
+        "emotion_lazy", 
+        "emotion_quiet", 
+        "emotion_fear", 
+        "emotion_magnificent", 
+        UNKNOWN_EMOTION
+    ]
+
+    GENRES = [
+    "genre_rock", 
+    "genre_pop", 
+    "genre_country", 
+    "genre_jazz", 
+    "genre_classical", 
+    "genre_folk", 
+    UNKNOWN_GENRE
+    ]
 
     # General MIDI has a bank of 128 instruments with set IDs, get all for tokenization, store drums as 128
     INSTRUMENTS = [f"prog_{p}" for p in range(129)]
@@ -45,7 +68,7 @@ class Generation:
 
 def get_tokenizer():
     token_config = TokenizerConfig()
-    token_config.additional_params = TokenLabels.SPECIAL_TOKENS
+    token_config.special_tokens += TokenLabels.GENRES + TokenLabels.EMOTIONS + TokenLabels.INSTRUMENTS
     return REMI(token_config)
 
 # Instantiate tokenizer globally (shared by train/eval scripts)

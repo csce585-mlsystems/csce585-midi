@@ -40,9 +40,14 @@ def process_file(file):
     try:
         genre, emotion = parse_filename(file)
         tokens, programs = midi_to_tokens(file, _worker_tokenizer, genre, emotion)
-        return (tokens, genre, emotion, programs, None)
+        return {
+            "tokens": torch.tensor(tokens, dtype=torch.int16),
+            "genre": genre,
+            "emotion": emotion,
+            "programs": torch.tensor(programs, dtype=torch.int16)
+        }
     except Exception as e:
-        return None, None, None, None, f"{file}: {e}"
+        return None
 
 def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH, 
                     out_path=MidiTokenization.OUT_PATH, shard_size=MidiTokenization.SHARD_SIZE, 
@@ -63,14 +68,10 @@ def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH,
         for i, result in enumerate(
                 tqdm(pool.imap(process_file, files), total=len(files)), start=1
         ):
-            tokens, genre, emotion, programs, error = result
-            if error:
-                errors.append(error)
-                continue
-            if tokens is None:
+            if result is None:
                 continue
 
-            shard_items.append((tokens, genre, emotion, programs))
+            shard_items.append(result)
             if (i + 1) % shard_size == 0 or (i + 1) == len(files):
                 shard_file = out_path / f"shard_{shard_index:03d}.pt"
                 torch.save(shard_items, shard_file)
@@ -99,15 +100,15 @@ def parse_filename(f: Path):
         genre = s[2]
 
         if genre not in TokenLabels.GENRES:
-            genre = TokenLabels.UNKNOWN_LABEL
+            genre = TokenLabels.UNKNOWN_GENRE
         if emotion not in TokenLabels.EMOTIONS:
-            emotion = TokenLabels.UNKNOWN_LABEL
+            emotion = TokenLabels.UNKNOWN_EMOTION
         return genre, emotion
-    return TokenLabels.UNKNOWN_LABEL, TokenLabels.UNKNOWN_LABEL
+    return TokenLabels.UNKNOWN_GENRE, TokenLabels.UNKNOWN_EMOTION
 
 if __name__ == "__main__":
     token_config = TokenizerConfig()
-    token_config.additional_params = TokenLabels.SPECIAL_TOKENS
+    token_config.special_tokens += TokenLabels.GENRES + TokenLabels.EMOTIONS + TokenLabels.INSTRUMENTS
     tokenizer = REMI(token_config)
 
     print("Beginning Preprocessing")

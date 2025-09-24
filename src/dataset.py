@@ -1,6 +1,6 @@
 import torch, random
 from torch.utils.data import IterableDataset
-from config import Model
+from src.config import Model
 
 class MidiDataset(IterableDataset):
     def __init__(self, shard_files, seq_len = Model.SEQ_LEN, shuffle=True):
@@ -18,11 +18,9 @@ class MidiDataset(IterableDataset):
                 data = torch.load(file)
                 random.shuffle(data)
 
-                for tokens, genre, emotion, programs in data:
-                    tokens = tokens[:self.seq_len]
-                    x = torch.tensor(tokens, dtype=torch.long)
-
-                    if len(x) < self.seq_len:
-                        pad_len = self.seq_len - len(x)
-                        x = torch.cat([x, torch.full((pad_len,), 0)])
-                    yield x
+                for item in data:
+                    tokens = item["tokens"][:self.seq_len].to(torch.long)
+                    if len(tokens) < self.seq_len:
+                        pad_len = self.seq_len - len(tokens)
+                        tokens = torch.cat([tokens, torch.full((pad_len,), 0)])
+                    yield tokens
