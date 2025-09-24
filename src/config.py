@@ -46,21 +46,21 @@ class TokenLabels:
     }
 
 class Model:
-    SEQ_LEN = 512
-    D_MODEL = 384
-    N_LAYERS = 6
-    N_HEADS = 6
-    D_FF = 1536
+    SEQ_LEN = 1024
+    D_MODEL = 512
+    N_LAYERS = 8
+    N_HEADS = 8
+    D_FF = 2048
 
 class Training:
     CHECKPOINT_PATH = Path("./data/checkpoints")
     TOTAL_STEPS = 100000
-    BATCH_SIZE = 1
-    ACCUMULATION_STEPS = 16
-    LR = 2e-4
+    BATCH_SIZE = 16
+    ACCUMULATION_STEPS = 2
+    LR = 1e-4
     WEIGHT_DECAY = 0.01
     PRINT_EVERY = 50
-    CHECKPOINT_EVERY = 1000
+    CHECKPOINT_EVERY = 10000
 
 class Generation:
     TEMP = 1.0

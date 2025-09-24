@@ -15,6 +15,7 @@ class MidiDataset(IterableDataset):
                 random.shuffle(files)
             
             for file in files:
+                print("Loading shard:", file)
                 data = torch.load(file)
                 random.shuffle(data)
 

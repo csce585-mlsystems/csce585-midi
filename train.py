@@ -1,13 +1,19 @@
+import time
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from pathlib import Path
 
-from src.config import Model, Training, MidiTokenization, VOCAB_SIZE
+from src.config import Model, Training, MidiTokenization, VOCAB_SIZE, TOKENIZER, TokenLabels
 from src.dataset import MidiDataset
 from src.model import MidiModel
 
 def train():
+    IGNORE_IDS = {0}  # pad
+    for group in TokenLabels.SPECIAL_TOKENS.values():
+        for tok in group:
+            if tok in TOKENIZER.vocab:
+                IGNORE_IDS.add(TOKENIZER.vocab[tok])
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     shards = list(MidiTokenization.OUT_PATH.glob("*.pt"))
@@ -34,17 +40,27 @@ def train():
     else:
         step = 0
         print("starting new training")
+    start_step = step
+    start_time = time.time()
     for batch in dataloader:
         x = batch.to(device)
 
         # forward with mixed precision
         with torch.autocast(device_type="cuda", dtype=torch.float16):
             logits = model(x[:, :-1])
-            loss = F.cross_entropy(
+            targets = x[:, 1:].reshape(-1)
+
+            mask = torch.isin(targets.cpu(), torch.tensor(list(IGNORE_IDS)))
+            targets[mask] = -100
+
+            total_loss = F.cross_entropy(
                 logits.reshape(-1, VOCAB_SIZE),
                 x[:, 1:].reshape(-1),
-                ignore_index=0
-            ) / Training.ACCUMULATION_STEPS
+                ignore_index=-100, reduction="sum"
+            ) 
+        real_tokens = (x[:, 1:] != -100).sum()
+        loss = total_loss / real_tokens
+        loss = loss / Training.ACCUMULATION_STEPS
 
         loss.backward()
 
@@ -54,6 +70,11 @@ def train():
 
         if step % Training.PRINT_EVERY == 0:
             print(f"step {step} loss {loss.item() * Training.ACCUMULATION_STEPS:.4f}")
+            elapsed_time = time.time() - start_time
+            delta_steps = step - start_step
+            sps = delta_steps / elapsed_time
+            tps = sps * Training.BATCH_SIZE * Model.SEQ_LEN
+            print(f"{sps:.2f} steps/sec {tps:.0f} tokens/sec over {step} steps")
 
         if step % Training.CHECKPOINT_EVERY == 0 and step > 0 :
             ckpt_path = Training.CHECKPOINT_PATH / f"model_step{step}.pt"

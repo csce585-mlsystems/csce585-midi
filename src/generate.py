@@ -1,6 +1,20 @@
 import torch
-from config import TOKENIZER, VOCAB_SIZE, Model, Generation
-from model import MidiModel
+from src.config import TOKENIZER, VOCAB_SIZE, Model, Generation
+from src.model import MidiModel
+
+def load_inference_model(checkpoint_path: str): 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = MidiModel(
+        VOCAB_SIZE, Model.D_MODEL,
+        Model.N_LAYERS, Model.N_HEADS,
+        Model.D_FF, Model.SEQ_LEN
+    ).to(device)
+
+    state_dict = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(state_dict)
+    model.eval()
+    print(f"loaded model from {checkpoint_path}")
+    return model
 
 @torch.no_grad #more efficient memory usage for inference
 def generate(model, start_tokens, max_len=Model.SEQ_LEN, temperature=Generation.TEMP, top_k=Generation.TOP_K):
@@ -22,10 +36,13 @@ def generate(model, start_tokens, max_len=Model.SEQ_LEN, temperature=Generation.
             next_token = torch.multinomial(probs, 1).squeeze()
 
         # append new token
-        x = torch.cat([x, next_token.unsqueeze(0).unsqueeze(0)], dim=1)
-
-        # optional EOS stop
-        if next_token.item() == TOKENIZER.eos_token_id:
-            break
+        next_token = next_token.item()
+        x = torch.cat([x, torch.tensor([[next_token]], device=device)], dim=1)
 
     return x.squeeze().tolist()
+
+def tokens_to_midi(tokens, out_path):
+    print(TOKENIZER[22])
+    midi = TOKENIZER.decode([tokens])
+    midi.dump_midi(out_path)
+    print(f"saved MIDI to {out_path}")
