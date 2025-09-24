@@ -66,13 +66,13 @@ def preprocess_data(tokenizer, data_path=MidiTokenization.MIDI_PATH,
     print(f"Found {len(files)} MIDIS, using {n_workers} workers to parse")
     with Pool(processes=n_workers, initializer=init_worker, initargs=(str(tok_json),)) as pool:
         for i, result in enumerate(
-                tqdm(pool.imap(process_file, files), total=len(files)), start=1
+                tqdm(pool.imap_unordered(process_file, files, chunksize=4), total=len(files)), start=1
         ):
             if result is None:
                 continue
 
             shard_items.append(result)
-            if (i + 1) % shard_size == 0 or (i + 1) == len(files):
+            if i % shard_size == 0 or i == len(files):
                 shard_file = out_path / f"shard_{shard_index:03d}.pt"
                 torch.save(shard_items, shard_file)
                 print(f"saved {len(shard_items)} items to {shard_file}")
