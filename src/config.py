@@ -31,12 +31,13 @@ class Model:
 
 class Training:
     CHECKPOINT_PATH = Path("./data/checkpoints")
-    EPOCHS = 5
+    TOTAL_STEPS = 100000
     BATCH_SIZE = 1
     ACCUMULATION_STEPS = 16
     LR = 2e-4
     WEIGHT_DECAY = 0.01
-    PRINT_EVERY = 100
+    PRINT_EVERY = 50
+    CHECKPOINT_EVERY = 1000
 
 class Generation:
     TEMP = 1.0

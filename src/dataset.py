@@ -9,19 +9,20 @@ class MidiDataset(IterableDataset):
         self.shuffle = shuffle
     
     def __iter__(self):
-        shard_files = list(self.shard_files)
-        if self.shuffle:
-            random.shuffle(shard_files)
-        
-        for file in self.shard_files:
-            data = torch.load(file)
-            random.shuffle(data)
+        while True:
+            files = list(self.shard_files)
+            if self.shuffle:
+                random.shuffle(files)
+            
+            for file in files:
+                data = torch.load(file)
+                random.shuffle(data)
 
-            for tokens, genre, emotion, programs in data:
-                tokens = tokens[:self.seq_len] #truncate if too long
-                x = torch.tensor(tokens, dtype=torch.long)
+                for tokens, genre, emotion, programs in data:
+                    tokens = tokens[:self.seq_len]
+                    x = torch.tensor(tokens, dtype=torch.long)
 
-                if len(x) < self.seq_len:
-                    pad_len = self.seq_len - len(x)
-                    x = torch.cat([x, torch.full((pad_len,), 0)])
-                yield x
+                    if len(x) < self.seq_len:
+                        pad_len = self.seq_len - len(x)
+                        x = torch.cat([x, torch.full((pad_len,), 0)])
+                    yield x
