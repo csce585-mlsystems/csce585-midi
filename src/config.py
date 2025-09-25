@@ -55,7 +55,7 @@ class Model:
 class Training:
     CHECKPOINT_PATH = Path("./data/checkpoints")
     TOTAL_STEPS = 100000
-    BATCH_SIZE = 8
+    BATCH_SIZE = 32
     ACCUMULATION_STEPS = 2
     LR = 2e-4
     WEIGHT_DECAY = 0.01

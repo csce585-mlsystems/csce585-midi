@@ -16,7 +16,7 @@ def convert_checkpoint(in_path: str, out_path: str, half_precision = True):
         Model.D_FF, Model.SEQ_LEN,
         Training.LR, Training.WEIGHT_DECAY
     )
-    model.load_state_dict(ckpt["model_state_dict"])
+    model.load_state_dict(ckpt["state_dict"])
 
     state_dict = model.state_dict()
     if half_precision:

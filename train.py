@@ -24,7 +24,7 @@ model = MidiModel(
 
 checkpoint_callback = ModelCheckpoint(
     dirpath=Training.CHECKPOINT_PATH,
-    filename="model_setp{step}",
+    filename="model_{step}",
     every_n_train_steps=Training.CHECKPOINT_EVERY,
     save_top_k=-1,
     save_weights_only=False

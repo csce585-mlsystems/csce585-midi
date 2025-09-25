@@ -17,30 +17,26 @@ def load_inference_model(checkpoint_path: str):
     print(f"loaded model from {checkpoint_path}")
     return model
 
-@torch.no_grad #more efficient memory usage for inference
-def generate(model, start_tokens, max_len=Model.SEQ_LEN, temperature=Generation.TEMP, top_k=Generation.TOP_K):
-    model.eval()
+@torch.inference_mode
+def generate(model, start_tokens, max_len=Model.SEQ_LEN,
+    temperature=Generation.TEMP, top_k=Generation.TOP_K):
     device = next(model.parameters()).device
     x = torch.tensor(start_tokens, device=device).unsqueeze(0)  # [1, T]
+    past_kvs = None
 
     for _ in range(max_len - len(start_tokens)):
-        logits = model(x)[:, -1, :]   # last step logits
-        logits = logits / temperature
+        logits, past_kvs = model(x[:, -1:], past_kvs, use_cache=True)
+        logits = logits[:, -1, :] / temperature
 
-        # top-k filtering
-        if top_k > 0:
-            values, indices = torch.topk(logits, k=top_k)
-            probs = torch.softmax(values, dim=-1)
-            next_token = indices[0, torch.multinomial(probs, 1)]
-        else:
-            probs = torch.softmax(logits, dim=-1)
-            next_token = torch.multinomial(probs, 1).squeeze()
+        values, indices = torch.topk(logits, k=top_k)
+        probs = torch.softmax(values, dim=-1)
 
-        # append new token
-        next_token = next_token.item()
-        x = torch.cat([x, torch.tensor([[next_token]], device=device)], dim=1)
+        next_token = indices[0, torch.multinomial(probs, 1)]
+        next_token = next_token.view(1, 1)
 
-    return x.squeeze().tolist()
+        x = torch.cat([x, next_token], dim=1)
+
+    return x.squeeze(0).tolist()
 
 def sequence_to_midi(sequence, out_path):
     sequence = TOKENIZER.decode([sequence])
