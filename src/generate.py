@@ -1,5 +1,5 @@
 import torch
-from src.config import TOKENIZER, VOCAB_SIZE, Model, Generation
+from src.config import TOKENIZER, VOCAB_SIZE, Model, Generation, Training
 from src.model import MidiModel
 
 def load_inference_model(checkpoint_path: str): 
@@ -7,7 +7,8 @@ def load_inference_model(checkpoint_path: str):
     model = MidiModel(
         VOCAB_SIZE, Model.D_MODEL,
         Model.N_LAYERS, Model.N_HEADS,
-        Model.D_FF, Model.SEQ_LEN
+        Model.D_FF, Model.SEQ_LEN,
+        Training.LR, Training.WEIGHT_DECAY
     ).to(device)
 
     state_dict = torch.load(checkpoint_path, map_location=device)

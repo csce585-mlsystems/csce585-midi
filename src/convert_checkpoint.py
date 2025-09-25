@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 from src.model import MidiModel
-from src.config import Model, VOCAB_SIZE
+from src.config import Model, VOCAB_SIZE, Training
 
 # converts a training checkpoint containing optimizer state into weights-only for inference
 def convert_checkpoint(in_path: str, out_path: str, half_precision = True):
@@ -13,7 +13,8 @@ def convert_checkpoint(in_path: str, out_path: str, half_precision = True):
     model = MidiModel(
         VOCAB_SIZE, Model.D_MODEL,
         Model.N_LAYERS, Model.N_HEADS,
-        Model.D_FF, Model.SEQ_LEN
+        Model.D_FF, Model.SEQ_LEN,
+        Training.LR, Training.WEIGHT_DECAY
     )
     model.load_state_dict(ckpt["model_state_dict"])
 
