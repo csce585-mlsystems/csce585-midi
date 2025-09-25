@@ -1,7 +1,6 @@
 from pathlib import Path
 from multiprocessing import cpu_count
-from miditok import REMI, TokenizerConfig
-    
+from transformers import AutoTokenizer    
 class MidiTokenization:
     MIDI_PATH = Path("./data/midi")
     OUT_PATH = Path("./data/tokens")
@@ -47,10 +46,10 @@ class TokenLabels:
 
 class Model:
     SEQ_LEN = 1024
-    D_MODEL = 384
-    N_LAYERS = 6
-    N_HEADS = 6
-    D_FF = 1536
+    HIDDEN_SIZE = 384
+    N_HIDDEN_LAYERS = 6
+    N_ATTENTION_HEADS = 6
+    INTERMEDIATE_SIZE = 1536
 
 class Training:
     CHECKPOINT_PATH = Path("./data/checkpoints")
@@ -66,12 +65,14 @@ class Training:
 class Generation:
     TEMP = 1.0
     TOP_K = 50
-
-def get_tokenizer():
-    token_config = TokenizerConfig()
-    token_config.special_tokens += TokenLabels.GENRES + TokenLabels.EMOTIONS + TokenLabels.INSTRUMENTS
-    return REMI(token_config)
+    TOP_P = 0.9
 
 # Instantiate tokenizer globally (shared by train/eval scripts)
-TOKENIZER = get_tokenizer()
-VOCAB_SIZE = len(TOKENIZER.vocab)
+TOKENIZER = None
+VOCAB_SIZE = None
+try:
+    TOKENIZER = AutoTokenizer.from_pretrained(MidiTokenization.OUT_PATH)
+    VOCAB_SIZE = len(TOKENIZER)
+except Exception as e: 
+    TOKENIZER = None
+    VOCAB_SIZE = None

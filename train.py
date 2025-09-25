@@ -1,41 +1,49 @@
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from src.dataset import MidiDataModule
-from src.model import MidiModel
-from src.config import VOCAB_SIZE, Model, Training, MidiTokenization
-
-data_module = MidiDataModule(
-    shard_files=list(MidiTokenization.OUT_PATH.glob("*.pt")),
-    batch_size=Training.BATCH_SIZE,
-    seq_len=Model.SEQ_LEN
+from src.dataset import ShardedMidiDataset
+from transformers import (
+    Trainer,
+    TrainingArguments,
+    DataCollatorForLanguageModeling
 )
 
-model = MidiModel(
-    vocab_size=VOCAB_SIZE,
-    d_model=Model.D_MODEL,
-    n_layers=Model.N_LAYERS,
-    n_heads=Model.N_HEADS,
-    d_ff=Model.D_FF,
-    seq_len=Model.SEQ_LEN,
-    lr=Training.LR,
-    weight_decay=Training.WEIGHT_DECAY
-)
+from src.config import Model, Training, TOKENIZER, VOCAB_SIZE, MidiTokenization
+from src.model import build_midi_model
 
-checkpoint_callback = ModelCheckpoint(
-    dirpath=Training.CHECKPOINT_PATH,
-    filename="model_{step}",
-    every_n_train_steps=Training.CHECKPOINT_EVERY,
-    save_top_k=-1,
-    save_weights_only=False
-)
+def train():
+   dataset = ShardedMidiDataset()
+   model = build_midi_model()
 
-trainer = Trainer(
-    accelerator="auto", devices=1, precision="16-mixed",
-    max_steps=Training.TOTAL_STEPS,
-    val_check_interval=Training.VAL_EVERY,
-    callbacks=[checkpoint_callback],
-    log_every_n_steps=Training.PRINT_EVERY
-)
-torch.set_float32_matmul_precision('high')
-trainer.fit(model, datamodule=data_module)
+   data_collator = DataCollatorForLanguageModeling(tokenizer=TOKENIZER, mlm=False)
+
+   args = TrainingArguments(
+      output_dir=Training.CHECKPOINT_PATH,
+      per_device_train_batch_size=Training.BATCH_SIZE,
+      gradient_accumulation_steps=Training.ACCUMULATION_STEPS,
+      learning_rate=Training.LR,
+      weight_decay=Training.WEIGHT_DECAY,
+      warmup_steps=Training.WARMUP_STEPS,
+      max_steps=Training.TOTAL_STEPS,
+      logging_steps=Training.PRINT_EVERY,
+      save_steps=Training.CHECKPOINT_EVERY,
+      remove_unused_columns=False,
+    #   eval_strategy="steps",
+    #   eval_steps=Training.VAL_EVERY,
+      save_total_limit=5,
+      fp16=torch.cuda.is_available(),
+      dataloader_num_workers=4,
+      dataloader_prefetch_factor=2,
+      dataloader_pin_memory=True
+   )
+
+   trainer = Trainer(
+      model=model,
+      args=args,
+      train_dataset=dataset,
+      eval_dataset=None,
+      data_collator=data_collator
+   )
+
+   trainer.train()
+
+if __name__ == "__main__":
+   train()
