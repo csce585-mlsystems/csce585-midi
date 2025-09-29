@@ -41,6 +41,6 @@ Colin Raffel. **"Learning-Based Methods for Comparing Sequences, with Applicatio
 ## Directory Structure  
 
 ## How to Run  
-
+Using python 3.10.6
 ## Demo  
 ---

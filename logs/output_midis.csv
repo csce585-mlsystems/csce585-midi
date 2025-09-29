@@ -1,0 +1,10 @@
+2025-09-27 16:20:13,outputs/generated_20250927_162013.mid,greedy,100,1.0,5,0.9,models/lstm_20250927_152720.pth
+2025-09-27 16:21:40,outputs/generated_20250927_162140.mid,greedy,100,1.0,5,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:07:02,outputs/generated_20250927_170702.mid,greedy,100,1.0,5,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:08:33,outputs/generated_20250927_170833.mid,greedy,100,1.0,5,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:20:39,outputs/midi/generated_20250927_172039.mid,greedy,100,1.0,5,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:33:49,outputs/midi/generated_20250927_173349.mid,top_k,100,1.0,6,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:35:04,outputs/midi/generated_20250927_173504.mid,top_k,100,1.0,12,0.9,models/lstm_20250927_152720.pth
+2025-09-27 17:36:05,outputs/midi/generated_20250927_173605.mid,top_k,100,1.0,124,0.9,models/lstm_20250927_152720.pth
+2025-09-27 23:51:09,outputs/midi/generated_20250927_235109.mid,top_k,100,1.0,120,0.9,models/lstm_20250927_152720.pth
+2025-09-29 10:34:27,outputs/midi/generated_20250929_103427.mid,top_k,100,1.0,120,0.9,models/lstm_20250927_152720.pth
