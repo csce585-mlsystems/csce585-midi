@@ -41,11 +41,6 @@ Thumbs.db
 *.log
 logs/training_session_*/
 
-# Model checkpoints (keep structure but not large files)
-# Temporarily allowing data files for submission
-# *.pth
-# *.pt
-
 # Outputs - keep generated files for submission
 # outputs/midi/*.mid
 # outputs/*/training_loss/*.png
@@ -83,5 +78,11 @@ requirements.txt
 data/nottingham-dataset-master/
 data/**/*.npy
 data/**/*.pkl
-outputs/training_loss/
+outputs/
 logs/
+
+# ignore model weights and dataset files
+/models/**/*.pth
+/models/**/*.pt
+/data/**/*.npy
+/data/**/*.pkl

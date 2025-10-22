@@ -1,0 +1,5 @@
+{
+  "seq_length": 50,
+  "tokenizer": "REMI",
+  "num_sequences": 2055
+}
