@@ -73,9 +73,7 @@ logs/training_session_*/
 # requirements.txt is legacy
 requirements.txt
 
-data/nottingham-dataset-master/
-data/**/*.npy
-data/**/*.pkl
+data/
 outputs/
 logs/
 
