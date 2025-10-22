@@ -65,7 +65,10 @@ logs/training_session_*/
 # data/nottingham-dataset-master/MIDI/*.mid
 
 # docs
-/docs/*.md
+/docs/GENERATOR_FACTORY.md
+/docs/IMPLEMENTATION_SUMMARY.md
+/docs/P1_PRELIMINARY_RESULTS.md
+/docs/PROPOSAL.md
 
 # requirements.txt is legacy
 requirements.txt
