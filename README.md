@@ -226,7 +226,7 @@ Options:
 - Data preprocessing pipelines
 
 **Data** (Included in repo)
-- Nottingham MIDI dataset (~1000 folk tunes)
+- Nottingham MIDI dataset (~1200 folk tunes)
 - Preprocessed sequences (naive & MidiTok tokenization)
 - Vocabulary files and tokenizer configs
 
@@ -256,38 +256,6 @@ All dependencies are managed via `pyproject.toml` and locked in `uv.lock`:
 - `pandas>=2.2.3` - Data management
 - `tqdm>=4.66.5` - Progress bars
 
----
-
-## Sharing Trained Models
-
-To share your trained models with others:
-
-### Option 1: GitHub Releases (Recommended)
-1. Train your best model
-2. Create a GitHub release
-3. Attach the `.pth` file to the release
-4. Users download via release URL
-
-### Option 2: Git LFS
-```bash
-# Install Git LFS
-brew install git-lfs
-git lfs install
-
-# Track model files
-git lfs track "models/**/*.pth"
-git add .gitattributes
-git commit -m "Add LFS tracking"
-
-# Add model and push
-git add models/best_model.pth
-git commit -m "Add trained model"
-git push
-```
-
-**Note**: GitHub provides 1GB free LFS storage.
-
----
 
 ## Troubleshooting
 
@@ -298,22 +266,4 @@ pip install -e .
 
 # Check Python version
 python --version  # Should be 3.10+
-```
-
-**Training Issues**:
-```bash
-# Out of memory - reduce batch size
-python training/train_generator.py --batch_size 64
-
-# MPS not available - will fall back to CPU
-# Check: python -c "import torch; print(torch.backends.mps.is_available())"
-```
-
-**Generation Issues**:
-```bash
-# Model not found - check path
-ls models/naive/
-
-# Use explicit model path
-python generate.py --model_path models/naive/lstm_20251020_210637.pth
 ```

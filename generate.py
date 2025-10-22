@@ -72,8 +72,8 @@ def generate(
     
     # you know which directories to look in by the model's filepath
     DATA_DIR = Path(f"data/{dataset}")
-    LOG_FILE = Path(f"logs/{dataset}/output_midis.csv")
-    OUTPUT_DIR = Path(f"outputs/{dataset}/midi")
+    LOG_FILE = Path(f"logs/generators/{dataset}/output_midis.csv")
+    OUTPUT_DIR = Path(f"outputs/generator/{dataset}/midi")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True) # ensure output dir exists
     
     # load the vocab
