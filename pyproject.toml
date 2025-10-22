@@ -1,0 +1,39 @@
+[project]
+name = "csce585-midi"
+version = "0.1.0"
+description = "AI Music Generation via MIDI using Discriminator-Generator Architecture"
+authors = [
+    {name = "Cade Stocker", email = "cstocker@email.sc.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.9.0",
+    "numpy>=1.26.4,<2.0",
+    "scikit-learn>=1.7.2",
+    "miditok>=3.0.0",
+    "music21>=9.1.0",
+    "pretty-midi>=0.2.10",
+    "pandas>=2.2.3",
+    "matplotlib>=3.9.2",
+    "seaborn>=0.13.2",
+    "tqdm>=4.66.5",
+]
+
+# Explicitly define this as not a package but a collection of scripts
+# This prevents setuptools from trying to build it as a package
+[tool.setuptools]
+py-modules = []
+packages = []
+
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

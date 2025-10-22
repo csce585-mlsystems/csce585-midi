@@ -1,0 +1,87 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/training_session_*/
+
+# Model checkpoints (keep structure but not large files)
+# Temporarily allowing data files for submission
+# *.pth
+# *.pt
+
+# Outputs - keep generated files for submission
+# outputs/midi/*.mid
+# outputs/*/training_loss/*.png
+
+# dataset (all midi files)
+*.mid
+
+# models
+*.pth
+*.pt
+
+
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temporary files
+/tmp/
+*.tmp
+# Allowing MIDI files for submission
+# data/nottingham-dataset-master/MIDI/*.mid
+
+# project checklists
+P0_P1_CHECKLIST.md
+PROJECT_RUBRIC_CHECKLIST.md
+SUBMISSION_FILES.md
+
+# docs
+/docs/*.md
+
+# requirements.txt is legacy
+requirements.txt
+
+data/nottingham-dataset-master/
+data/**/*.npy
+data/**/*.pkl
+outputs/training_loss/
+logs/
