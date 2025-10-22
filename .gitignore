@@ -64,12 +64,6 @@ logs/training_session_*/
 # Allowing MIDI files for submission
 # data/nottingham-dataset-master/MIDI/*.mid
 
-# project checklists
-P0_P1_CHECKLIST.md
-PROJECT_RUBRIC_CHECKLIST.md
-SUBMISSION_FILES.md
-SUBMISSION_CHECKLIST.txt
-
 # docs
 /docs/*.md
 
