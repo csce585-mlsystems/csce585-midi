@@ -73,12 +73,16 @@ logs/training_session_*/
 # requirements.txt is legacy
 requirements.txt
 
-data/
+# Data - ignore large files but keep small tokenizer configs
+data/nottingham-dataset-master/
+data/measures/
+data/**/*.npy
+data/**/*.mid
+
+# Outputs and logs
 outputs/
 logs/
 
-# ignore model weights and dataset files
+# ignore model weights
 /models/**/*.pth
 /models/**/*.pt
-/data/**/*.npy
-/data/**/*.pkl
