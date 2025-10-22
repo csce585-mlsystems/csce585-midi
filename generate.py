@@ -14,37 +14,195 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 from models.generators.generator_factory import get_generator
+from models.discriminators.discriminator_factory import get_discriminator
 
 # pick device
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
-""" GETTING RID OF THIS. USING A SPECIFIC MODEL PATH INSTEAD.
- ORIGINALLY THIS WAS MADE TO FIND THE MOST RECENT MODEL BY TIMESTAMP."""
-# if model_files:
-#     # gets the timestamp from the filename
-#     # assumes filenames are like lstm_MMDDHHMM.pth
-#     def extract_timestamp(filepath):
-#         """Extract timestamp from filename like lstm_MMDDHHMM.pth"""
-#         try:
-#             # Extract the timestamp part after 'lstm_' and before '.pth'
-#             timestamp_str = filepath.stem.split('_')[1]
-#             # Convert MMDDHHMM format to a comparable integer
-#             return int(timestamp_str)
-#         except (IndexError, ValueError):
-#             # If parsing fails, fall back to file modification time
-#             return int(filepath.stat().st_mtime)
+def load_discriminator(discriminator_path, model_type, pitch_dim=52, context_measures=4):
+    """Load a trained discriminator model from checkpoint."""
+
+    # load the model using factory pattern
+    discriminator = get_discriminator(model_type, pitch_dim=pitch_dim, context_measures=context_measures)
+    # load the trained weights
+    discriminator.load_state_dict(torch.load(discriminator_path, map_location=DEVICE))
+    # move to device
+    discriminator.to(DEVICE)
+    # set to eval mode (this means layers like dropout, batchnorm behave appropriately)
+    discriminator.eval()
+    print(f"Loaded {model_type} discriminator for guided generation")
+    return discriminator
+
+def apply_discriminator_guidance(logits, discriminator, context_measures, generated_so_far, int_to_note, guidance_strength=0.5, dataset="naive"):
+    """
+    Apply discriminator guidance to adjust generation probabilities.
     
-#     # get the most recently created model based on filename timestamp
-#     latest_model = max(model_files, key=extract_timestamp)
-#     MODEL_PATH = latest_model
-#     print(f"Found latest model checkpoint: {latest_model}")
-# else:
-#     # if none are found, use the default path
-#     print("No model checkpoints found in models/ directory. Using default path.")
-#     MODEL_PATH = "models/lstm_checkpoint.pth"
+    Args:
+        logits: Tensor of shape (1, vocab_size) - model's output logits for next token
+        discriminator: the loaded discriminator model
+        context_measures: number of measures used as context for the discriminator
+        generated_so_far: list of generated token integers so far
+        int_to_note: mapping from integer to note/chord string
+        guidance_strength: float, how strongly to apply the discriminator's feedback
+    Returns:
+        adjusted_logits: Tensor of shape (1, vocab_size) - adjusted logits
+    """
 
+    if discriminator is None: # make sure discriminator exists
+        return logits
+    
+    # different required context lengths based on dataset being used
+    if dataset == "miditok":
+        # miditok uses multiple tokens per note, so need more tokens for context
+        tokens_per_measure = 100 # conservative estimate
+        min_tokens = tokens_per_measure
 
-"""  UPDATE: USING ONLY NOTTINGHAM NOW AS OF 9/27/2025 """
+    else: # naive
+        tokens_per_measure = 16
+        min_tokens = 16
+
+    # check if we have enough context
+    if len(generated_so_far) < min_tokens:
+        return logits
+    
+    # extract recent tokens to form context (last n measures)
+    context_length = context_measures * tokens_per_measure
+    recent_tokens = generated_so_far[-context_length:] if len(generated_so_far) >= context_length else generated_so_far
+
+    # convert tokens to pitch representation for discriminator
+    pitches = []
+
+    MIDDLE_C = 60  # MIDI number for Middle C (defalut)
+
+    if dataset == "miditok":
+        # for miditok, extract only pitch tokens
+        for token_idx in recent_tokens:
+            # get the token string
+            token_str = int_to_note.get(token_idx, "")
+            if token_str.startswith("Pitch_"):
+                try:
+                    pitch = int(token_str.split("_")[1])
+                    pitches.append(pitch)
+                except (ValueError, IndexError):
+                    pass # skip malformed tokens
+    else: # naive
+        # for naive, each token is a note or chord
+        for note_idx in recent_tokens:
+            note_symbol = int_to_note.get(note_idx, f"{MIDDLE_C}") # default to middle C
+
+            if '.' in note_symbol: # chord
+                # take first note of chord
+                pitches.append(int(note_symbol.split('.')[0]))
+            elif note_symbol.isdigit(): # single note as integer
+                pitches.append(int(note_symbol))
+            else:
+                # convert note name to midi pitch
+                try:
+                    # use music21 to convert note name to midi number
+                    n = note.Note(note_symbol)
+                    pitches.append(n.pitch.midi)
+                except:
+                    pitches.append(MIDDLE_C) # default to middle C on error
+
+    # need at least one measure worth of pitches
+    notes_per_measure = 16
+    min_pitches = notes_per_measure
+
+    if len(pitches) < min_pitches:
+        return logits # not enough pitches for context
+    
+    # pad/truncate to expected length (context_measures * notes_per_measure)
+    expected_pitch_length = context_measures * notes_per_measure
+    if len(pitches) < expected_pitch_length:
+        # pad with middle C
+        # creates a new list with padding at the start and existing pitches at the end
+        pitches = [MIDDLE_C] * (expected_pitch_length - len(pitches)) + pitches
+    else:
+        # take most recent
+        pitches = pitches[-expected_pitch_length:]
+
+    # create one-hot encoding for pitches (52 pitch classes for multiple octaves)
+    pitch_dim = 52
+    # makes tensor of shape (1, context_measures, pitch_dim) filled with zeros
+    context_tensor = torch.zeros(1, context_measures, pitch_dim).to(DEVICE)
+
+    # fill context tensor measure by measure
+    for m in range(context_measures):
+        # get index of note for beginning and end
+        measure_start = m * notes_per_measure
+        measure_end = (m+1) * notes_per_measure
+        # grab those notes from pitches
+        measure_pitches = pitches[measure_start:measure_end]
+
+        for p in measure_pitches:
+            # map midi pitch to index (C3=48 and D3=50)
+            pitch_idx = p - 48 # start from C3
+            if 0 <= pitch_idx < pitch_dim:
+                context_tensor[0, m, pitch_idx] = 1.0 # set one-hot
+
+    # get discrim prediction
+    with torch.no_grad():
+        chord_probs = discriminator(context_tensor)  # logits for each pitch class
+
+    # apply guidance by boosting probs of notes in predicted chord (chord tone soloing)
+    """
+    I'm imagining this as a musician training part of their brain on chord tones and arpeggios
+    This basically gives the model info about which notes are chord tones and fit harmonically.
+    I still want the generator to have freedom to pick non-chord tones, so I won't force it too much.
+    """
+    adjusted_logits = logits.clone()
+
+    # get top predicted chords
+    top_chords = torch.topk(chord_probs, k=3, dim=-1).indices[0]  # get top 3 chord tone indices
+
+    # boost tokens that correspond to these chord tones
+    for chord_idx in top_chords:
+        # map chord index to pitch classes
+        # assuming chord_idx represents root note
+        # plus chord type (major, minor, etc.) encoded in higher bits
+        root = chord_idx % 12  # get root pitch class (0-11)
+
+        # for simplicity, major triad
+        chord_pitches = [
+            root,
+            (root + 4) % 12, # major 3rd
+            (root + 7) % 12  # perfect 5th
+        ]
+
+        # boost logit tokens for representing these pitch classes
+        for token_idx, token_str in int_to_note.items():
+            if dataset == "miditok":
+                # only boost pitch tokens
+                if token_str.startswith("Pitch_"):
+                    try:
+                        pitch = int(token_str.split("_")[1])
+                        pitch_class = pitch % 12
+                        if pitch_class in chord_pitches:
+                            adjusted_logits[0, token_idx] += guidance_strength
+                    except (ValueError, IndexError):
+                        pass # skip malformed tokens
+            else: # naive
+                # check if note/chord contains any of the predicted pitches
+                if '.' in token_str: # chord
+                    # get all pitch classes in chord
+                    note_pitches = [int(n) % 12 for n in token_str.split('.')]
+                elif token_str.isdigit(): # if it's a digit, it's a single note
+                    # get the pitch class
+                    note_pitches = [int(token_str) % 12]
+                else: # single note
+                    try:
+                        # convert note name to pitch class
+                        n = note.Note(token_str)
+                        note_pitches = [n.pitch.midi % 12]
+                    except:
+                        continue
+
+                # if note contains any pitch from predicted chord, boost it
+                if any(p in chord_pitches for p in note_pitches):
+                    adjusted_logits[0, token_idx] += guidance_strength
+
+    return adjusted_logits
+
 
 def generate(
     strategy="greedy",
@@ -55,6 +213,11 @@ def generate(
     p=0.9, # for nucleus sampling
     model_path=None,
     model_type="lstm", # specify which architecture was used
+    discriminator_path=None,
+    discriminator_type=None,
+    guidance_strength=0.5,
+    context_measures=4,
+    guidance_frequency=1
 ):
     
     # infer dataset (miditok or naive) from the model file path
@@ -96,22 +259,55 @@ def generate(
     generated = seed.copy() # start with the seed
 
     # load the model using factory pattern
-    # Initialize with arbitrary default parameters - they'll be overwritten by checkpoint
-    model = get_generator(model_type, vocab_size)
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE)) # load trained weights
+    # Load checkpoint first to inspect architecture
+    checkpoint = torch.load(model_path, map_location=DEVICE)
+    
+    # Try to infer num_layers from checkpoint structure
+    # For transformers, check how many decoder layers exist
+    num_layers = 2  # default that was used in training
+    if model_type == "transformer":
+        # Count transformer decoder layers in checkpoint
+        layer_keys = [k for k in checkpoint.keys() if k.startswith("transformer_decoder.layers.")]
+        if layer_keys:
+            layer_nums = [int(k.split('.')[2]) for k in layer_keys if k.split('.')[2].isdigit()]
+            if layer_nums:
+                num_layers = max(layer_nums) + 1  # +1 because layers are 0-indexed
+    
+    # Create model with correct architecture
+    if model_type == "transformer":
+        model = get_generator(model_type, vocab_size, num_layers=num_layers, d_model=256, nhead=8, dim_feedforward=1024, dropout=0.1)
+    else:
+        # LSTM/GRU with standard parameters
+        model = get_generator(model_type, vocab_size, embed_size=128, hidden_size=256, num_layers=num_layers, dropout=0.2)
+    
+    model.load_state_dict(checkpoint) # load trained weights
     model.to(DEVICE) # move model to the appropriate device
     model.eval() # set to eval mode
-    print(f"Loaded {model_type} model with {sum(p.numel() for p in model.parameters()):,} parameters")
+    print(f"Loaded {model_type} model ({num_layers} layers) with {sum(p.numel() for p in model.parameters()):,} parameters")
+
+    # load discriminator if provided
+    discriminator = None
+    if discriminator_path and discriminator_type:
+        discriminator = load_discriminator(discriminator_path, discriminator_type, context_measures=context_measures)
+        print(f"Using discriminator guidance with strength {guidance_strength} and context of {context_measures} measures")
 
     # prepare the input (seed) as a tensor
     input_seq = torch.tensor(seed, dtype=torch.long).unsqueeze(0).to(DEVICE)
 
     # generate tokens (notes/chords etc.)
-    for _ in range(generate_length):
+    for i in range(generate_length):
         # don't need gradients for inference (save time and space and just unecessary overall)
         with torch.no_grad():
             output, _ = model(input_seq) # get model's output
             logits = output[:, -1, :] # get the logits for the last time step (the next note prediction)
+
+            # apply discriminator guidance if available
+            if discriminator is not None and i % guidance_frequency == 0:
+                logits = apply_discriminator_guidance(
+                    logits, discriminator, context_measures,
+                    generated, int_to_note, guidance_strength,
+                    dataset=dataset # dataset type
+                )
 
             # sample the next note using the specified strategy
             # .item() converts a single-value tensor to a standard Python number
@@ -227,6 +423,15 @@ if __name__ == "__main__":
                         help="Top-p (nucleus) value (for top_p sampling)")
     parser.add_argument("--model_path", type=str, required=True,
                         help="Path to the trained model checkpoint")
+    parser.add_argument("--discriminator_path", type=str, default=None,
+                        help="Path to the trained discriminator checkpoint (for guidance)")
+    parser.add_argument("--discriminator_type", type=str, default=None,
+                        choices=["mlp", "lstm", "transformer"])
+    parser.add_argument("--guidance_strength", type=float, default=0.5,
+                        help="Strength of discriminator guidance during generation")
+    parser.add_argument("--context_measures", type=int, default=4,
+                        help="Number of measures used as context for the discriminator")
+    
 
     args = parser.parse_args()
     generate(**vars(args))

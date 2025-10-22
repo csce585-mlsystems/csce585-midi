@@ -4,6 +4,19 @@
 Cade Stocker 
 - Email: cstocker@email.sc.edu  
 
+## Requirements
+
+### Python Version
+This project requires **Python 3.10, 3.11, or 3.12**. Python 3.13+ is not supported due to NumPy compatibility issues.
+
+The project includes a `.python-version` file that automatically selects Python 3.11 for tools like `uv` and `pyenv`.
+
+**Troubleshooting**: If `uv sync` uses the wrong Python version, manually specify it:
+```bash
+uv venv --python 3.11
+uv sync
+```
+
 ## Project Summary/Abstract  
 
 ## Problem Description  
@@ -127,7 +140,7 @@ python -c "import miditok; import pretty_midi; print('Dependencies OK')"
 ls data/nottingham-dataset-master/MIDI/*.mid | wc -l  # Should show ~1000
 ```
 
-### 5. Preprocess the Dataset (Optional)
+### 5. Preprocess the Dataset
 ```bash
 # Activate your environment first
 source .venv/bin/activate  # or: .venv/bin/python for individual commands
