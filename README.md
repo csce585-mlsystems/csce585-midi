@@ -7,7 +7,7 @@ Cade Stocker
 ## Requirements
 
 ### Python Version
-This project requires **Python 3.10, 3.11, or 3.12**. Python 3.13+ is not supported due to NumPy compatibility issues.
+This project uses **Python 3.11.10**. Python 3.13+ is not supported due to NumPy compatibility issues.
 
 The project includes a `.python-version` file that automatically selects Python 3.11 for tools like `uv` and `pyenv`.
 
@@ -47,7 +47,11 @@ Output from the models (MIDI File) is analyzed by PrettyMIDI library, which find
 
 ## Contribution  
 
-## References   
+
+## References
+
+Zheng Jiang (2019) Automatic Analysis of Music in Standard MIDI Files
+(https://www.cs.cmu.edu/~music/cmp/theses/zheng_jiang_thesis.pdf)
 
 Zhu, Y., Baca, J., Rekabdar, B., Rawassizadeh, R. (2023). A Survey of AI Music Generation Tools and Models. [arXiv:2308.12982](https://arxiv.org/abs/2308.12982)
 
