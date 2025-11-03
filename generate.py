@@ -11,6 +11,8 @@ from music21 import stream, note, chord
 from utils.sampling import sample_next_note
 from datetime import datetime
 
+from utils.seed_selection import find_seed_by_characteristics
+
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 from models.generators.generator_factory import get_generator
@@ -217,7 +219,11 @@ def generate(
     discriminator_type=None,
     guidance_strength=0.5,
     context_measures=4,
-    guidance_frequency=1
+    guidance_frequency=1,
+    seed_style="random",
+    pitch_preference="medium",
+    complexity="medium",
+    seed_length="medium"
 ):
     
     # infer dataset (miditok or naive) from the model file path
@@ -255,7 +261,17 @@ def generate(
 
     # load data and seed
     sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
-    seed = list(sequences[np.random.randint(len(sequences))][:seq_length])
+
+    if seed_style == "random":
+        seed = list(sequences[np.random.randint(len(sequences))][:seq_length])
+    else:
+        seed = find_seed_by_characteristics(
+            sequences, int_to_note,
+            pitch_preference=pitch_preference,
+            complexity=complexity,
+            length=seed_length
+        )[:seq_length]
+
     generated = seed.copy() # start with the seed
 
     # load the model using factory pattern
@@ -431,6 +447,15 @@ if __name__ == "__main__":
                         help="Strength of discriminator guidance during generation")
     parser.add_argument("--context_measures", type=int, default=4,
                         help="Number of measures used as context for the discriminator")
+    parser.add_argument("--seed_style", type=str, default="random",
+                        choices=["random", "smart"], help="Pick whether to use random seed or select one" \
+                        " based on given constraints")
+    parser.add_argument("--pitch_preference", type=str, default="medium",
+                        choices=["low", "medium", "high"],
+                        help="Pick your desired pitch range")
+    parser.add_argument("--complexity", type=str, default="medium",
+                        choices=["simple", "medium", "complex"],
+                        help="Pick number of unique pitches (simple=3-5 pitches\nmedium=6-8 pitches\ncomplex=9+ pitches)")
     
 
     args = parser.parse_args()
