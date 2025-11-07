@@ -35,3 +35,7 @@ def sample_measure_sequences():
         seq = [np.random.randint(0, 2, size=16) for _ in range(8)]
         sequences.append(seq)
     return np.array(sequences, dtype=object)
+
+@pytest.fixture
+def model_types():
+    return ["lstm", "gru", "transformer"]

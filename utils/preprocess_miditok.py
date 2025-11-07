@@ -10,6 +10,7 @@ Looks over every midi file in the input directory, as a score,
 then tokenize each track (with REMI). This converts musical events (notes, timing, etc.)
 into integers. Tokenized data is then saved with numpy.
     Sequences go to sequences.npy
+        sequences of ints representing the notes (sequence for each song)
     config is saved in json file (holds data needed to decode tokens live vocab, special tokens, ...)
     tokenizer params - config settings that define how the midi is converted to tokens
 
@@ -45,7 +46,7 @@ into integers. Tokenized data is then saved with numpy.
 
 INPUT_DIR = Path("data/nottingham-dataset-master/MIDI")
 OUTPUT_DIR = Path("data/miditok")
-OUTPUT_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default training seq length (used in train.py slicing, not here)
 SEQ_LENGTH = 100

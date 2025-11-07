@@ -126,3 +126,4 @@ def get_default_config(model_type):
             f"Unknown model_type: {model_type}. "
             f"Choose from 'lstm', 'gru', or 'transformer'."
         )
+    

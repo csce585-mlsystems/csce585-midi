@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 import matplotlib.pyplot as plt
 import argparse
 import time
+from tqdm import tqdm
 
 # Add project root to path so we can import from models/
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,35 +33,42 @@ DEFAULT_SEQ_LENGTH = 50
 
 # dataset
 class MIDIDataset(Dataset):
-    def __init__(self, sequences, seq_length=DEFAULT_SEQ_LENGTH):
-        # sequences is a list of lists of integers
-        self.data = []
-        for seq in sequences:
-            seq = list(map(int, seq))  # ensure integers
-
-            # skip sequences shorter than seq_length
-            if len(seq) < seq_length:
-                continue
-            # iterate over the sequence to create input-target pairs
-            for i in range(len(seq) - seq_length):
-                # create input and target sequences
-                input_seq = seq[i:i+seq_length]
-                # target sequence starting at index 1 to index[length+1] (to predict next note)
-                target = seq[i+1:i+seq_length+1]
-                self.data.append((input_seq, target))
+    """Lazy-loading dataset that generates samples on-the-fly to avoid memory issues."""
+    def __init__(self, sequences, seq_length=DEFAULT_SEQ_LENGTH, subsample_ratio=1.0):
+        # Store references to sequences instead of creating all samples upfront
+        self.sequences = [list(map(int, seq)) for seq in sequences if len(seq) >= seq_length]
+        self.seq_length = seq_length
+        
+        # Calculate indices for each sequence
+        self.sequence_indices = []
+        for seq_idx, seq in enumerate(self.sequences):
+            # num_samples is number of possible starting indexes that don't go out of bounds with given seq_length
+            num_samples = len(seq) - seq_length
+            if subsample_ratio < 1.0:
+                # Subsample by taking every Nth sample
+                step = int(1.0 / subsample_ratio)
+                indices = list(range(0, num_samples, step))
+            else:
+                # enumerate each starting index
+                indices = list(range(num_samples))
+            
+            for i in indices:
+                self.sequence_indices.append((seq_idx, i)) # (which seq it's from, starting idx)
+        
+        print(f"Dataset initialized: {len(self.sequence_indices):,} samples from {len(self.sequences)} sequences")
 
     def __len__(self):
-        return len(self.data)
+        return len(self.sequence_indices) # amount of sequences
     
     def __getitem__(self, idx):
-        # get input and target sequences
-        # input_seq, target = self.data[idx]
-        # # convert to tensors
-        # return torch.tensor(input_seq, dtype=torch.long), torch.tensor(target, dtype=torch.long)
-        x, y = self.data[idx]
-        x = [int(i) for i in x]  # ensure integers
-        y = [int(i) for i in y]
-        return torch.tensor(x, dtype=torch.long), torch.tensor(y, dtype=torch.long)
+        # Generate sample on-the-fly
+        seq_idx, start_idx = self.sequence_indices[idx]
+        seq = self.sequences[seq_idx]
+        
+        input_seq = seq[start_idx:start_idx + self.seq_length]
+        target = seq[start_idx + 1:start_idx + self.seq_length + 1]
+        
+        return torch.tensor(input_seq, dtype=torch.long), torch.tensor(target, dtype=torch.long)
 
 def log_experiment(hparams, results, logfile):
     # make sure logs directory exists
@@ -84,13 +92,14 @@ def log_experiment(hparams, results, logfile):
     
 def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, num_layers=2,
           batch_size=32, epochs=10, learning_rate=0.001, device=None, max_batches=None,
-          d_model=256, nhead=8, dim_feedforward=1024, dropout=0.2):
+          d_model=256, nhead=8, dim_feedforward=1024, dropout=0.2, 
+          subsample_ratio=1.0, patience=3, val_split=0.1):
     
     # directories
     DATA_DIR = Path(f"data/{dataset}")
-    MODEL_DIR = Path(f"models/{dataset}")
-    OUTPUT_DIR = Path(f"outputs/{dataset}")
-    LOG_FILE = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
+    MODEL_DIR = Path(f"models/generators/checkpoints/{dataset}")
+    OUTPUT_DIR = Path(f"outputs/generators/{dataset}")
+    LOG_FILE = f"logs/generators/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
 
     # make sure directories exist
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,12 +143,30 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         raise FileNotFoundError("No vocabulary file found in the data directory.")
     
     print(f"Vocab size: {vocab_size}, Sequence length: {seq_length}, Device: {device}")
+    print(f"Subsample ratio: {subsample_ratio}, Val split: {val_split}, Early stopping patience: {patience}")
 
-    # create dataset and dataloader
-    dataset = MIDIDataset(sequences, seq_length=seq_length)
+    # Split data into train and validation
+    if val_split > 0:
+        split_idx = int(len(sequences) * (1 - val_split))
+        train_sequences = sequences[:split_idx]
+        val_sequences = sequences[split_idx:]
+        print(f"Train sequences: {len(train_sequences)}, Val sequences: {len(val_sequences)}")
+    else:
+        train_sequences = sequences
+        val_sequences = None
+
+    # create dataset and dataloader with lazy loading
+    train_dataset = MIDIDataset(train_sequences, seq_length=seq_length, subsample_ratio=subsample_ratio)
     # Note: num_workers=0 to avoid multiprocessing issues on macOS with MPS
     # pin_memory=False because MPS doesn't support it
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False)
+    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False)
+    
+    # Create validation dataloader if needed
+    if val_sequences is not None:
+        val_dataset = MIDIDataset(val_sequences, seq_length=seq_length, subsample_ratio=1.0)  # Don't subsample val
+        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
+    else:
+        val_dataloader = None
 
     # initialize the model using factory pattern
     model = get_generator(
@@ -162,12 +189,22 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
     # to track loss
     losses = []
+    val_losses = []
+    best_val_loss = float('inf')
+    patience_counter = 0
+    best_model_state = None
 
     # training loop
     start_time = time.time() # start time tracking
+    print(f"Starting training at: {start_time}")
+    
     for epoch in range(epochs):
-        # initialize loss
+        
+        # Training phase
+        model.train()
         epoch_loss = 0
+        num_batches = 0
+
         # iterate over batch indexes and data
         for batch_idx, (x, y) in enumerate(dataloader):
             # limit number of batches for quick testing
@@ -187,12 +224,50 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
             # accumulate loss
             epoch_loss += loss.item()
+            num_batches += 1
 
         # average loss for the epoch
-        avg_loss = epoch_loss / (batch_idx + 1)
-        # track losses
+        avg_loss = epoch_loss / num_batches
         losses.append(avg_loss)
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+        
+        # Validation phase
+        if val_dataloader is not None:
+            model.eval()
+            val_loss = 0
+            val_batches = 0
+            
+            with torch.no_grad():
+                for x, y in val_dataloader:
+                    x, y = x.to(device), y.to(device)
+                    output, _ = model(x)
+                    loss = loss_function(output.view(-1, vocab_size), y.view(-1))
+                    val_loss += loss.item()
+                    val_batches += 1
+            
+            avg_val_loss = val_loss / val_batches
+            val_losses.append(avg_val_loss)
+            
+            print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+            
+            # Early stopping check
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                best_model_state = model.state_dict().copy()
+                print(f"  ✓ New best validation loss: {best_val_loss:.4f}")
+            else:
+                patience_counter += 1
+                print(f"  ✗ Val loss increased ({patience_counter}/{patience})")
+                
+                if patience_counter >= patience:
+                    print(f"\nEarly stopping triggered after {epoch+1} epochs")
+                    # Restore best model
+                    if best_model_state is not None:
+                        model.load_state_dict(best_model_state)
+                        print("Restored best model weights")
+                    break
+        else:
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
     # get current time stamp
     total_time = time.time() - start_time # total training time
@@ -250,8 +325,18 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         "min_loss": min(losses),
         "max_loss": max(losses),
         "loss_std": np.std(losses),
-        "train_time_sec": round(total_time, 2)
+        "train_time_sec": round(total_time, 2),
+        "num_epochs_trained": len(losses),
+        "early_stopped": len(losses) < epochs
     }
+    
+    # Add validation results if available
+    if val_losses:
+        results.update({
+            "final_val_loss": val_losses[-1],
+            "best_val_loss": best_val_loss,
+            "min_val_loss": min(val_losses),
+        })
 
     # log the experiment
     log_experiment(hparams, results, log_file)
@@ -291,6 +376,14 @@ if __name__ == "__main__":
     parser.add_argument("--dim_feedforward", type=int, default=1024,
                         help="Feedforward dimension (for Transformer)")
     
+    # Optimization parameters
+    parser.add_argument("--subsample_ratio", type=float, default=1.0,
+                        help="Ratio of dataset to use (0.0-1.0). Use <1.0 for faster training on large datasets")
+    parser.add_argument("--val_split", type=float, default=0.1,
+                        help="Validation split ratio (0.0-1.0)")
+    parser.add_argument("--patience", type=int, default=3,
+                        help="Early stopping patience (epochs)")
+    
     args = parser.parse_args()
 
     train(
@@ -306,5 +399,8 @@ if __name__ == "__main__":
         batch_size=args.batch_size, 
         epochs=args.epochs, 
         learning_rate=args.lr,
-        max_batches=args.max_batches
+        max_batches=args.max_batches,
+        subsample_ratio=args.subsample_ratio,
+        val_split=args.val_split,
+        patience=args.patience
     )

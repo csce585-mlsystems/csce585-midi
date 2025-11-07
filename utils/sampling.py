@@ -10,6 +10,10 @@ def sample_next_note(logits, strategy="greedy", k=5, p=0.9, temperature=1.0):
         return torch.argmax(probs, dim=-1)
     
     elif strategy == "top_k":
+        # ensure k is an int and within the vocabulary size
+        vocab_size = logits.size(-1)
+        k = int(k)
+        k = max(1, min(k, vocab_size)) # 1 < k < vocab_size
         # get the top k probabilities and their indices
         top_k_probs, top_k_indices = torch.topk(probs, k)
         # normalize the top k probabilities

@@ -455,8 +455,10 @@ if __name__ == "__main__":
                         help="Pick your desired pitch range")
     parser.add_argument("--complexity", type=str, default="medium",
                         choices=["simple", "medium", "complex"],
-                        help="Pick number of unique pitches (simple=3-5 pitches\nmedium=6-8 pitches\ncomplex=9+ pitches)")
-    
+                        help="Pick number of unique pitches\nsimple=3-5 pitches\nmedium=6-8 pitches\ncomplex=9+ pitches)")
+    parser.add_argument("--seed_length", type=str, default="medium",
+                        choices=["short", "medium", "long"],
+                        help="Length of seed\nshort: < 50 notes\n medium: 50-100 notes\nlong: 100+ notes")
 
     args = parser.parse_args()
     generate(**vars(args))
