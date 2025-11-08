@@ -62,12 +62,19 @@ def midi_to_notes(file_path):
         print(f"Error parsing {file_path}: {e}")
         return []
     
+    # make sure the file isn't empty
+    
     # Extract notes and chords
     notes = []
     # get the instrument parts
     parts = instrument.partitionByInstrument(midi)
-    # Get all elements from the first part
-    elements = parts.parts[0].recurse() if parts else midi.flat.notes
+
+    try:
+        # Get all elements from the first part
+        elements = parts.parts[0].recurse() if parts else midi.flat.notes
+    except Exception as e:
+        print(f"error getting elements")
+        return []
 
     # Convert notes and chords to string representation
     for elem in elements:

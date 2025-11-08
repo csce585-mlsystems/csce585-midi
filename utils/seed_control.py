@@ -99,53 +99,90 @@ def set_rng_state(state):
     np.random.set_state(state['numpy'])
     torch.set_rng_state(state['torch'])
     
-    if 'torch_cuda' in state and torch.cuda.is_available():
+    if 'torch_cuda' in state and state['torch_cuda'] is not None and torch.cuda.is_available():
         torch.cuda.set_rng_state_all(state['torch_cuda'])
     
-    if 'torch_mps' in state and torch.backends.mps.is_available():
+    if 'torch_mps' in state and state['torch_mps'] is not None and torch.backends.mps.is_available():
         torch.mps.set_rng_state(state['torch_mps'])
     
     print("Random number generator state restored")
 
 
-if __name__ == "__main__":
-    # Test reproducibility
-    print("Testing seed control...")
+def main():
+    """
+    Demonstration of seed control utilities
     
-    # Test 1: Same seed should give same results
+    Shows three key features:
+    1. Setting seed for reproducibility
+    2. Saving and restoring RNG state
+    3. Different seeds produce different results
+    """
+    print("=" * 60)
+    print("Demonstration of seed control utilities")
+    print("=" * 60)
+    
+    # Demo 1: Set seed for reproducibility
+    print("\n1. Set seed for reproducibility")
+    print("-" * 40)
+    print("Setting seed to 42...")
     set_seed(42)
     result1 = torch.randn(5)
+    print(f"With seed 42: {result1}")
     
+    print("\nSetting seed to 42 again...")
     set_seed(42)
     result2 = torch.randn(5)
+    print(f"With seed 42: {result2}")
     
     assert torch.allclose(result1, result2), "Results should be identical!"
-    print("Test 1 passed: Same seed gives same results")
+    print("✓ Same seed produces identical results!")
     
-    # Test 2: Different seeds give different results
+    # Demo 2: Save and restore RNG state
+    print("\n2. Save and restore RNG state")
+    print("-" * 40)
+    print("Setting seed to 42...")
     set_seed(42)
-    result1 = torch.randn(5)
     
-    set_seed(123)
-    result2 = torch.randn(5)
-    
-    assert not torch.allclose(result1, result2), "Results should be different!"
-    print("Test 2 passed: Different seeds give different results")
-    
-    # Test 3: State saving/restoring
-    set_seed(42)
+    print("Saving RNG state...")
     state = get_rng_state()
     original = torch.randn(5)
+    print(f"Original output: {original}")
     
-    # Generate some random numbers (changes state)
-    _ = torch.randn(100)
+    print("\nGenerating random numbers (changes state)...")
+    for _ in range(5):
+        _ = torch.randn(100)
+    intermediate = torch.randn(5)
+    print(f"After many operations: {intermediate}")
     
-    # Restore state
+    print("\nRestoring RNG state...")
     set_rng_state(state)
     restored = torch.randn(5)
+    print(f"After restoring state: {restored}")
     
     assert torch.allclose(original, restored), "State restoration should work!"
-    print("Test 3 passed: State save/restore works")
+    print("✓ State save/restore works correctly!")
     
-    print("\nAll seed control tests passed!")
-    print("Usage: from utils.seed_control import set_seed; set_seed(42)")
+    # Demo 3: Different seeds produce different results
+    print("\n3. Different seeds produce different results")
+    print("-" * 40)
+    set_seed(42)
+    result_42 = torch.randn(5)
+    print(f"With seed 42:  {result_42}")
+    
+    set_seed(123)
+    result_123 = torch.randn(5)
+    print(f"With seed 123: {result_123}")
+    
+    assert not torch.allclose(result_42, result_123), "Results should be different!"
+    print("✓ Different seeds produce different results!")
+    
+    print("\n" + "=" * 60)
+    print("All demonstrations passed!")
+    print("=" * 60)
+    print("\nUsage in your code:")
+    print("  from utils.seed_control import set_seed")
+    print("  set_seed(42)  # At the start of your script")
+
+
+if __name__ == "__main__":
+    main()

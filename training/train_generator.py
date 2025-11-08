@@ -93,7 +93,7 @@ def log_experiment(hparams, results, logfile):
 def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, num_layers=2,
           batch_size=32, epochs=10, learning_rate=0.001, device=None, max_batches=None,
           d_model=256, nhead=8, dim_feedforward=1024, dropout=0.2, 
-          subsample_ratio=1.0, patience=3, val_split=0.1):
+          subsample_ratio=1.0, patience=None, val_split=0.0):
     
     # directories
     DATA_DIR = Path(f"data/{dataset}")
@@ -143,7 +143,10 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         raise FileNotFoundError("No vocabulary file found in the data directory.")
     
     print(f"Vocab size: {vocab_size}, Sequence length: {seq_length}, Device: {device}")
-    print(f"Subsample ratio: {subsample_ratio}, Val split: {val_split}, Early stopping patience: {patience}")
+    if subsample_ratio < 1.0:
+        print(f"Subsample ratio: {subsample_ratio}")
+    if val_split > 0:
+        print(f"Val split: {val_split}, Early stopping patience: {patience if patience else 'disabled'}")
 
     # Split data into train and validation
     if val_split > 0:
@@ -249,23 +252,24 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             
             print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
             
-            # Early stopping check
-            if avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
-                patience_counter = 0
-                best_model_state = model.state_dict().copy()
-                print(f"  ✓ New best validation loss: {best_val_loss:.4f}")
-            else:
-                patience_counter += 1
-                print(f"  ✗ Val loss increased ({patience_counter}/{patience})")
-                
-                if patience_counter >= patience:
-                    print(f"\nEarly stopping triggered after {epoch+1} epochs")
-                    # Restore best model
-                    if best_model_state is not None:
-                        model.load_state_dict(best_model_state)
-                        print("Restored best model weights")
-                    break
+            # Early stopping check (only if patience is set)
+            if patience is not None and patience > 0:
+                if avg_val_loss < best_val_loss:
+                    best_val_loss = avg_val_loss
+                    patience_counter = 0
+                    best_model_state = model.state_dict().copy()
+                    print(f"  ✓ New best validation loss: {best_val_loss:.4f}")
+                else:
+                    patience_counter += 1
+                    print(f"  ✗ Val loss increased ({patience_counter}/{patience})")
+                    
+                    if patience_counter >= patience:
+                        print(f"\nEarly stopping triggered after {epoch+1} epochs")
+                        # Restore best model
+                        if best_model_state is not None:
+                            model.load_state_dict(best_model_state)
+                            print("Restored best model weights")
+                        break
         else:
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
@@ -379,10 +383,10 @@ if __name__ == "__main__":
     # Optimization parameters
     parser.add_argument("--subsample_ratio", type=float, default=1.0,
                         help="Ratio of dataset to use (0.0-1.0). Use <1.0 for faster training on large datasets")
-    parser.add_argument("--val_split", type=float, default=0.1,
-                        help="Validation split ratio (0.0-1.0)")
-    parser.add_argument("--patience", type=int, default=3,
-                        help="Early stopping patience (epochs)")
+    parser.add_argument("--val_split", type=float, default=0.0,
+                        help="Validation split ratio (0.0-1.0). Set to 0 to disable validation.")
+    parser.add_argument("--patience", type=int, default=None,
+                        help="Early stopping patience (epochs). Only used if val_split > 0. Set to None to disable.")
     
     args = parser.parse_args()
 

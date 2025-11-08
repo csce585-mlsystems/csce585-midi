@@ -31,7 +31,6 @@ log() {
     echo "[$(date +"%H:%M:%S")] $1"
 }
 
-# Function to train and log with timeout (macOS compatible)
 train_model() {
     local model_name=$1
     local args=$2
@@ -43,26 +42,29 @@ train_model() {
     echo "Timeout: 3 hours" | tee -a "$log_file"
     echo "Started at: $(date)" | tee -a "$log_file"
     
-    # Run with timeout using background process and kill
+    # Start the training process in background
     python training/train_generator.py $args 2>&1 | tee -a "$log_file" &
     local PID=$!
     
-    # Wait for completion or timeout
-    local elapsed=0
-    while kill -0 $PID 2>/dev/null; do
-        sleep 10
-        elapsed=$((elapsed + 10))
-        if [ $elapsed -ge $timeout_seconds ]; then
-            log "⏱️  TIMEOUT: $model_name (exceeded 3 hours)"
+    # Create a timeout killer in background
+    (
+        sleep $timeout_seconds
+        if kill -0 $PID 2>/dev/null; then
+            log "⏱️  TIMEOUT: $model_name (exceeded 3 hours) - killing PID $PID"
+            # Kill the entire process group
+            pkill -P $PID 2>/dev/null || true
             kill -9 $PID 2>/dev/null || true
-            echo "TIMEOUT at $(date)" | tee -a "$log_file"
-            return 1
+            echo "TIMEOUT - Process killed at $(date)" | tee -a "$log_file"
         fi
-    done
+    ) &
+    local TIMEOUT_PID=$!
     
-    # Check exit status
+    # Wait for the training to complete
     wait $PID
     local EXIT_CODE=$?
+    
+    # Kill the timeout killer if training finished first
+    kill $TIMEOUT_PID 2>/dev/null || true
     
     if [ $EXIT_CODE -eq 0 ]; then
         log "✅ Completed: $model_name"
@@ -88,15 +90,6 @@ echo "PHASE 1: BASELINE MODELS (Full Dataset)"
 echo "=========================================="
 echo ""
 
-# LSTM Generator - baseline
-log "Training LSTM Generator..."
-if train_model "miditok_lstm" \
-    "$COMMON_ARGS --model_type lstm --epochs 15 --batch_size 64 --lr 0.001 --hidden_size 256 --num_layers 2"; then
-    ((SUCCESS_COUNT++))
-else
-    ((FAIL_COUNT++))
-fi
-echo ""
 
 # GRU Generator
 log "Training GRU Generator..."
