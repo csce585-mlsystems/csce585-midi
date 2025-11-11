@@ -1,49 +1,96 @@
 # Google Colab Quick Start Commands
 
-## 🚀 Copy-Paste Commands for Colab
+Copy and paste these commands into Google Colab code cells to quickly set up and train your music generation models.
 
-### 1. Clone Repository
+## Cell 1: Mount Google Drive
+
 ```python
-!git clone https://github.com/csce585-mlsystems/csce585-midi.git
-%cd csce585-midi
+from google.colab import drive
+drive.mount('/content/drive')
 ```
 
-### 2. Setup Environment
-```python
-!bash scripts/colab_setup.sh
-```
+Click the authorization link and grant access.
 
-### 3. Check GPU
+## Cell 2: Verify A100 GPU
+
 ```python
 import torch
-print(f"GPU: {torch.cuda.get_device_name(0)}")
-print(f"CUDA Available: {torch.cuda.is_available()}")
-!nvidia-smi
+
+print("GPU Information:")
+print(f"  Available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"  Device: {torch.cuda.get_device_name(0)}")
+    print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    print(f"  CUDA Version: {torch.version.cuda}")
+else:
+    print("  ⚠️ No GPU detected! Change runtime to A100.")
 ```
 
-### 4. Create Augmented Dataset (if needed)
-```python
-!python utils/augment_miditok.py
+Expected output:
+```
+GPU Information:
+  Available: True
+  Device: NVIDIA A100-SXM4-40GB
+  VRAM: 40.0 GB
+  CUDA Version: 12.2
 ```
 
-### 5. Quick Test (2 minutes)
-```python
-!python training/train_generator.py \
-    --dataset miditok_augmented \
-    --model_type lstm \
-    --epochs 1 \
-    --batch_size 256 \
-    --hidden_size 512 \
-    --num_layers 3 \
-    --max_batches 100 \
-    --device cuda
+## Cell 3: Setup and Train (All-in-One)
+
+```bash
+%%bash
+
+# Clone repository
+cd /content
+if [ ! -d "csce585-midi" ]; then
+    git clone https://github.com/csce585-mlsystems/csce585-midi.git
+fi
+cd csce585-midi
+
+# Install dependencies
+pip install -q miditok symusic tqdm matplotlib
+
+# Run full training pipeline
+chmod +x scripts/train_colab_a100.sh
+./scripts/train_colab_a100.sh
 ```
 
-## 🎯 Recommended Training Commands
+This will take ~10-13 hours to complete all three models.
 
-### Large LSTM (Recommended - 3-4 hours)
-```python
-!python training/train_generator.py \
+## Alternative: Individual Model Training
+
+### Cell 3a: Setup Only
+
+```bash
+%%bash
+
+# Clone and install
+cd /content
+git clone https://github.com/csce585-mlsystems/csce585-midi.git
+cd csce585-midi
+pip install -q miditok symusic tqdm matplotlib
+
+# Download data
+cd data
+git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
+cd ..
+
+# Preprocess
+python utils/preprocess_naive.py
+python utils/preprocess_miditok.py
+python utils/measure_dataset.py
+python utils/augment_miditok.py
+
+echo "✅ Setup complete!"
+```
+
+### Cell 3b: Train LSTM (3-4 hours)
+
+```bash
+%%bash
+cd /content/csce585-midi
+
+python training/train_generator.py \
     --dataset miditok_augmented \
     --model_type lstm \
     --epochs 20 \
@@ -54,7 +101,8 @@ print(f"CUDA Available: {torch.cuda.is_available()}")
     --dropout 0.4 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
+    --device cuda \
+    --checkpoint_dir /content/drive/MyDrive/csce585_model_checkpoints
 ```
 
 ### Large GRU (Fastest - 2-3 hours)
@@ -70,7 +118,8 @@ print(f"CUDA Available: {torch.cuda.is_available()}")
     --dropout 0.4 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
+    --device cuda \
+    --checkpoint_dir /content/drive/MyDrive/csce585_model_checkpoints
 ```
 
 ### Large Transformer (Best Quality - 5-6 hours)
@@ -88,7 +137,8 @@ print(f"CUDA Available: {torch.cuda.is_available()}")
     --dropout 0.3 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
+    --device cuda \
+    --checkpoint_dir /content/drive/MyDrive/csce585_model_checkpoints
 ```
 
 ### Mega Model (Push Limits - 10-12 hours)
@@ -246,3 +296,93 @@ Save checkpoints frequently by reducing patience:
 ```python
 --patience 3  # Stop earlier, saves more often
 ```
+
+## 📊 View Results After Training
+
+### Check Saved Files
+
+```python
+from pathlib import Path
+
+checkpoint_dir = Path('/content/drive/MyDrive/csce585_model_checkpoints/miditok_augmented')
+
+# Check models
+print("="*60)
+print("MODELS")
+print("="*60)
+model_dir = checkpoint_dir / 'models'
+if model_dir.exists():
+    models = list(model_dir.glob('*.pth'))
+    total_size = 0
+    for model in sorted(models):
+        size_mb = model.stat().st_size / 1e6
+        total_size += size_mb
+        print(f"  {model.name:40s} {size_mb:6.1f} MB")
+    print(f"\n  Total: {total_size:.1f} MB")
+
+# Check plots
+print("\n" + "="*60)
+print("TRAINING PLOTS")
+print("="*60)
+plots_dir = checkpoint_dir / 'outputs' / 'plots'
+if plots_dir.exists():
+    plots = list(plots_dir.glob('*.png'))
+    for plot in sorted(plots):
+        print(f"  {plot.name}")
+
+# Check logs
+print("\n" + "="*60)
+print("TRAINING LOGS")
+print("="*60)
+logs_dir = checkpoint_dir / 'logs'
+if logs_dir.exists():
+    summaries = list(logs_dir.glob('training_summary_*.txt'))
+    print(f"  Training summaries: {len(summaries)}")
+```
+
+### View Training Summary
+
+```python
+from pathlib import Path
+
+log_dir = Path('/content/drive/MyDrive/csce585_model_checkpoints/miditok_augmented/logs')
+summaries = sorted(log_dir.glob('training_summary_lstm_*.txt'))
+
+if summaries:
+    print("Latest LSTM Training Summary:")
+    print("="*80)
+    with open(summaries[-1], 'r') as f:
+        print(f.read())
+```
+
+### Display Loss Curves
+
+```python
+from IPython.display import Image, display
+from pathlib import Path
+
+plots_dir = Path('/content/drive/MyDrive/csce585_model_checkpoints/miditok_augmented/outputs/plots')
+
+if plots_dir.exists():
+    for plot in sorted(plots_dir.glob('*.png')):
+        print(f"📊 {plot.name}")
+        display(Image(filename=str(plot), width=800))
+        print("\n")
+```
+
+### Download All Results
+
+```python
+from google.colab import files
+from pathlib import Path
+import shutil
+
+checkpoint_dir = Path('/content/drive/MyDrive/csce585_model_checkpoints/miditok_augmented')
+
+# Create zip of all results
+shutil.make_archive('/content/training_results', 'zip', checkpoint_dir)
+
+print("📦 Downloading all training results...")
+files.download('/content/training_results.zip')
+```
+

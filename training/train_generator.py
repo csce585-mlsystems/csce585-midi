@@ -106,17 +106,32 @@ def log_experiment(hparams, results, logfile):
 def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, num_layers=2,
           batch_size=32, epochs=10, learning_rate=0.001, device=None, max_batches=None,
           d_model=256, nhead=8, dim_feedforward=1024, dropout=0.2, 
-          subsample_ratio=1.0, patience=None, val_split=0.0):
+          subsample_ratio=1.0, patience=None, val_split=0.0, checkpoint_dir=None):
     
     # directories
     DATA_DIR = Path(f"data/{dataset}")
-    MODEL_DIR = Path(f"models/generators/checkpoints/{dataset}")
-    OUTPUT_DIR = Path(f"outputs/generators/{dataset}")
-    LOG_FILE = f"logs/generators/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
+    
+    # Use checkpoint_dir if provided (for Google Drive), otherwise use local directories
+    if checkpoint_dir:
+        BASE_DIR = Path(checkpoint_dir)
+        MODEL_DIR = BASE_DIR / dataset / "models"
+        OUTPUT_DIR = BASE_DIR / dataset / "outputs"
+        LOG_DIR = BASE_DIR / dataset / "logs"
+        print(f"Using checkpoint directory: {BASE_DIR}")
+        print(f"  Models: {MODEL_DIR}")
+        print(f"  Outputs: {OUTPUT_DIR}")
+        print(f"  Logs: {LOG_DIR}")
+    else:
+        MODEL_DIR = Path(f"models/generators/checkpoints/{dataset}")
+        OUTPUT_DIR = Path(f"outputs/generators/{dataset}")
+        LOG_DIR = Path(f"logs/generators/{dataset}")
+    
+    LOG_FILE = LOG_DIR / "models.csv"
 
     # make sure directories exist
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
     
     # log_file = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
 
@@ -417,16 +432,81 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     torch.save(model.state_dict(), MODEL_DIR / model_filename)
     print(f"Model saved to {MODEL_DIR / model_filename}")
 
-    # plot the loss curve
-    plt.plot(losses)
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title("Training Loss Curve")
+    # Create plots directory
+    plots_dir = OUTPUT_DIR / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    # plot the training loss curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(losses, label='Training Loss', linewidth=2)
+    if val_losses:
+        plt.plot(val_losses, label='Validation Loss', linewidth=2)
+    plt.xlabel("Epoch", fontsize=12)
+    plt.ylabel("Loss", fontsize=12)
+    plt.title(f"Loss Curves - {model_type.upper()}", fontsize=14, fontweight='bold')
+    plt.legend(fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
     # save the plot
-    loss_plot_dir = Path(f"{OUTPUT_DIR}/training_loss")
-    loss_plot_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(loss_plot_dir / f"training_loss_{timestamp}.png")
+    plt.savefig(plots_dir / f"loss_curve_{model_type}_{timestamp}.png", dpi=150)
+    print(f"Loss plot saved to {plots_dir / f'loss_curve_{model_type}_{timestamp}.png'}")
     plt.close('all')  # close stuff to free memory
+
+    # Save training summary as text file
+    summary_file = LOG_DIR / f"training_summary_{model_type}_{timestamp}.txt"
+    with open(summary_file, 'w') as f:
+        f.write("="*80 + "\n")
+        f.write(f"TRAINING SUMMARY - {model_type.upper()}\n")
+        f.write("="*80 + "\n\n")
+        f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Dataset: {dataset}\n")
+        f.write(f"Model Type: {model_type}\n")
+        f.write(f"Device: {device}\n\n")
+        
+        f.write("Model Configuration:\n")
+        f.write(f"  Vocab Size: {vocab_size}\n")
+        f.write(f"  Sequence Length: {seq_length}\n")
+        if model_type in ["lstm", "gru"]:
+            f.write(f"  Embedding Size: {embed_size}\n")
+            f.write(f"  Hidden Size: {hidden_size}\n")
+            f.write(f"  Num Layers: {num_layers}\n")
+        elif model_type == "transformer":
+            f.write(f"  d_model: {d_model}\n")
+            f.write(f"  nhead: {nhead}\n")
+            f.write(f"  Transformer Layers: {num_layers}\n")
+            f.write(f"  Feedforward Dim: {dim_feedforward}\n")
+        f.write(f"  Dropout: {dropout}\n")
+        f.write(f"  Total Parameters: {sum(p.numel() for p in model.parameters()):,}\n\n")
+        
+        f.write("Training Configuration:\n")
+        f.write(f"  Epochs: {epochs}\n")
+        f.write(f"  Batch Size: {batch_size}\n")
+        f.write(f"  Learning Rate: {learning_rate}\n")
+        f.write(f"  Subsample Ratio: {subsample_ratio}\n")
+        if val_split > 0:
+            f.write(f"  Validation Split: {val_split}\n")
+            f.write(f"  Early Stopping Patience: {patience if patience else 'disabled'}\n")
+        f.write(f"\nTraining Results:\n")
+        f.write(f"  Total Time: {total_time/60:.2f} minutes\n")
+        f.write(f"  Epochs Completed: {len(losses)}/{epochs}\n")
+        f.write(f"  Final Training Loss: {losses[-1]:.4f}\n")
+        f.write(f"  Best Training Loss: {min(losses):.4f}\n")
+        if val_losses:
+            f.write(f"  Final Validation Loss: {val_losses[-1]:.4f}\n")
+            f.write(f"  Best Validation Loss: {best_val_loss:.4f}\n")
+            f.write(f"  Train/Val Gap: {val_losses[-1] - losses[-1]:+.4f}\n")
+        f.write(f"\nModel saved to: {MODEL_DIR / model_filename}\n")
+        f.write(f"Plot saved to: {plots_dir / f'loss_curve_{model_type}_{timestamp}.png'}\n")
+        f.write("="*80 + "\n")
+    
+    print(f"Training summary saved to {summary_file}")
+
+    # Save loss history as numpy arrays for later analysis
+    np.save(LOG_DIR / f"train_losses_{model_type}_{timestamp}.npy", np.array(losses))
+    if val_losses:
+        np.save(LOG_DIR / f"val_losses_{model_type}_{timestamp}.npy", np.array(val_losses))
+    print(f"Loss arrays saved to {LOG_DIR}")
+
 
     # return hyperparameters and results for logging
     hparams = {
@@ -523,6 +603,10 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=None,
                         help="Early stopping patience (epochs). Only used if val_split > 0. Set to None to disable.")
     
+    # Checkpoint directory (for Google Drive)
+    parser.add_argument("--checkpoint_dir", type=str, default=None,
+                        help="Directory to save checkpoints (e.g., '/content/drive/MyDrive/model_checkpoints'). If not provided, saves locally.")
+    
     args = parser.parse_args()
 
     train(
@@ -541,5 +625,6 @@ if __name__ == "__main__":
         max_batches=args.max_batches,
         subsample_ratio=args.subsample_ratio,
         val_split=args.val_split,
-        patience=args.patience
+        patience=args.patience,
+        checkpoint_dir=args.checkpoint_dir
     )
