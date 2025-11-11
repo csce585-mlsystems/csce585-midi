@@ -3,6 +3,15 @@
 # Training script optimized for Google Colab A100 GPU
 # This script trains larger, more powerful models that take advantage of A100's capabilities
 
+cd data/
+git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
+cd ..
+
+python utils/preprocess_naive.py
+python utils/preprocess_miditok.py
+python utils/measure_dataset.py
+python utils/augment_miditok.py
+
 echo "=========================================="
 echo "A100 GPU Training Pipeline"
 echo "=========================================="
@@ -27,15 +36,6 @@ echo "=========================================="
 echo "Training Large LSTM Models"
 echo "=========================================="
 echo ""
-
-cd data/
-git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
-cd ..
-
-python utils/preprocess_naive.py
-python utils/preprocess_miditok.py
-python utils/measure_dataset.py
-python utils/augment_miditok.py
 
 # Large LSTM (512 hidden, 3 layers)
 echo "1. Large LSTM (512 hidden, 3 layers)..."
