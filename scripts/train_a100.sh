@@ -50,7 +50,6 @@ python training/train_generator.py \
     --dropout 0.3 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
@@ -67,7 +66,6 @@ python training/train_generator.py \
     --dropout 0.4 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
@@ -93,7 +91,6 @@ python training/train_generator.py \
     --dropout 0.3 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
@@ -110,7 +107,6 @@ python training/train_generator.py \
     --dropout 0.4 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
@@ -138,7 +134,6 @@ python training/train_generator.py \
     --dropout 0.3 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
@@ -157,7 +152,6 @@ python training/train_generator.py \
     --dropout 0.3 \
     --val_split 0.1 \
     --patience 5 \
-    --device cuda
 
 echo ""
 
