@@ -39,14 +39,16 @@ Run this in a new code cell:
 
 # Clone repository
 cd /content
-git clone https://github.com/csce585-mlsystems/csce585-midi.git
+if [ ! -d "csce585-midi" ]; then
+    git clone https://github.com/csce585-mlsystems/csce585-midi.git
+fi
 cd csce585-midi
 
-# Make script executable
-chmod +x scripts/train_colab_a100.sh
+# Install dependencies
+pip install -q miditok symusic tqdm matplotlib
 
 # Run training
-./scripts/train_colab_a100.sh
+bash scripts/train_colab_a100.sh
 ```
 
 That's it! The script will:

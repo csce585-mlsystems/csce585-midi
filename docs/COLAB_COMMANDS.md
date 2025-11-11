@@ -37,6 +37,13 @@ GPU Information:
 
 ## Cell 3: Setup and Train (All-in-One)
 
+**First, mount Google Drive:**
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+**Then, clone repository and run training:**
 ```bash
 %%bash
 
@@ -51,8 +58,7 @@ cd csce585-midi
 pip install -q miditok symusic tqdm matplotlib
 
 # Run full training pipeline
-chmod +x scripts/train_colab_a100.sh
-./scripts/train_colab_a100.sh
+bash scripts/train_colab_a100.sh
 ```
 
 This will take ~10-13 hours to complete all three models.
@@ -61,19 +67,32 @@ This will take ~10-13 hours to complete all three models.
 
 ### Cell 3a: Setup Only
 
+**First, mount Google Drive:**
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+**Then, setup the project:**
 ```bash
 %%bash
 
 # Clone and install
 cd /content
-git clone https://github.com/csce585-mlsystems/csce585-midi.git
+if [ ! -d "csce585-midi" ]; then
+    git clone https://github.com/csce585-mlsystems/csce585-midi.git
+fi
 cd csce585-midi
+
+# Install dependencies
 pip install -q miditok symusic tqdm matplotlib
 
 # Download data
-cd data
-git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
-cd ..
+if [ ! -d "data/nottingham-dataset-master" ]; then
+    cd data
+    git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
+    cd ..
+fi
 
 # Preprocess
 python utils/preprocess_naive.py

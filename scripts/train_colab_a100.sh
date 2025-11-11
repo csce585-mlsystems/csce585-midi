@@ -2,6 +2,10 @@
 
 # Google Colab A100 Training Script with Google Drive Checkpoints
 # This script is designed to run on Google Colab with an A100 GPU
+#
+# IMPORTANT: Before running this script in Colab, you must:
+# 1. Mount Google Drive using: from google.colab import drive; drive.mount('/content/drive')
+# 2. Then run this script: !bash scripts/train_colab_a100.sh
 
 echo "=========================================="
 echo "Google Colab A100 Setup & Training"
@@ -16,23 +20,25 @@ if [ ! -d "/content" ]; then
 else
     echo "✅ Running in Google Colab environment"
     
-    # Mount Google Drive
-    echo ""
-    echo "Mounting Google Drive..."
-    python3 << 'MOUNT_DRIVE'
-from google.colab import drive
-import os
-
-# Mount drive
-drive.mount('/content/drive', force_remount=False)
-
-# Create checkpoint directory
-checkpoint_dir = '/content/drive/MyDrive/csce585_model_checkpoints'
-os.makedirs(checkpoint_dir, exist_ok=True)
-print(f"✅ Checkpoint directory ready: {checkpoint_dir}")
-MOUNT_DRIVE
+    # Check if Google Drive is mounted
+    if [ ! -d "/content/drive/MyDrive" ]; then
+        echo ""
+        echo "❌ ERROR: Google Drive is not mounted!"
+        echo ""
+        echo "Please run these commands in a Colab cell first:"
+        echo ""
+        echo "  from google.colab import drive"
+        echo "  drive.mount('/content/drive')"
+        echo ""
+        echo "Then run this script again."
+        exit 1
+    fi
     
+    # Create checkpoint directory
     CHECKPOINT_DIR="/content/drive/MyDrive/csce585_model_checkpoints"
+    mkdir -p "$CHECKPOINT_DIR"
+    echo "✅ Google Drive mounted successfully"
+    echo "✅ Checkpoint directory ready: $CHECKPOINT_DIR"
 fi
 
 echo ""
