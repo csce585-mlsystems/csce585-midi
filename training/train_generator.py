@@ -297,7 +297,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             print(f"Early stopping patience: {patience}")
     print("="*60)
     print(f"\nLarge datasets may take several minutes per epoch")
-    print(f" Watch the progress bar to see training is active\n")
+    print(f" Watch for periodic progress updates during training\n")
     
     for epoch in range(epochs):
         
@@ -305,17 +305,16 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         model.train()
         epoch_loss = 0
         num_batches = 0
+        epoch_start_time = time.time()
 
-        # Create progress bar for batches
-        # For large datasets, show progress every batch. For small ones, less verbose.
+        # Calculate how often to print updates (every 5% of batches or every 500 batches, whichever is smaller)
         total_batches = max_batches if max_batches else len(dataloader)
-        batch_progress = tqdm(enumerate(dataloader), total=total_batches, 
-                             desc=f"Epoch {epoch+1}/{epochs}", 
-                             unit="batch",
-                             ncols=100)
+        print_interval = min(500, max(1, total_batches // 20))
+        
+        print(f"\nEpoch {epoch+1}/{epochs} - Training on {total_batches:,} batches...")
         
         # iterate over batch indexes and data
-        for batch_idx, (x, y) in batch_progress:
+        for batch_idx, (x, y) in enumerate(dataloader):
             # limit number of batches for quick testing
             if max_batches and batch_idx >= max_batches:
                 break
@@ -339,9 +338,15 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             epoch_loss += loss.item()
             num_batches += 1
             
-            # Update progress bar with current loss every 100 batches
-            if batch_idx % 100 == 0:
-                batch_progress.set_postfix({'loss': f'{loss.item():.4f}'})
+            # Print progress periodically
+            if batch_idx > 0 and batch_idx % print_interval == 0:
+                elapsed = time.time() - epoch_start_time
+                batches_per_sec = num_batches / elapsed
+                eta_seconds = (total_batches - num_batches) / batches_per_sec if batches_per_sec > 0 else 0
+                percent = 100 * num_batches / total_batches
+                print(f"  Batch {num_batches:,}/{total_batches:,} ({percent:.1f}%) | "
+                      f"Loss: {loss.item():.4f} | Avg Loss: {epoch_loss/num_batches:.4f} | "
+                      f"Speed: {batches_per_sec:.1f} batch/s | ETA: {eta_seconds/60:.1f}m")
 
         # average loss for the epoch
         avg_loss = epoch_loss / num_batches
@@ -353,11 +358,10 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             val_loss = 0
             val_batches = 0
             
-            # Progress bar for validation
-            val_progress = tqdm(val_dataloader, desc="Validating", unit="batch", ncols=100, leave=False)
+            print(f"  Validating on {len(val_dataloader):,} batches...")
             
             with torch.no_grad():
-                for x, y in val_progress:
+                for x, y in val_dataloader:
                     x, y = x.to(device), y.to(device)
                     output, _ = model(x)
                     loss = loss_function(output.view(-1, vocab_size), y.view(-1))

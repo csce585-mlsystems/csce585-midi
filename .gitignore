@@ -38,7 +38,7 @@ env/
 Thumbs.db
 
 # scripts
-scripts/
+# scripts/
 
 # Logs
 *.log
