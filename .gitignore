@@ -37,6 +37,9 @@ env/
 .DS_Store
 Thumbs.db
 
+# scripts
+scripts/
+
 # Logs
 *.log
 logs/training_session_*/

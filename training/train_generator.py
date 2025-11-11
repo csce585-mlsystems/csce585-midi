@@ -11,6 +11,19 @@ import argparse
 import time
 from tqdm import tqdm
 
+"""
+    For my sanity:
+        Naive Data looks like this:
+            note_to_int.pkl - basically a dict holding {"note name" : associated id number (int)}
+            sequences.npy - each song in the dataset turned into sequence of numbers (instead of [C, C, A, C] it would be like [43, 43, 41, 43])
+
+        Miditok:
+            config.json - holds stuff like vocab_size, tokenizer, number of sequences, etc.
+            sequences.npy - stored the same way as miditok, but obviously different numbers because they have two different vocabs
+            tokenizer.json - info about the tokenizer to ensure reproducibility
+            vocab.json - dict of {"token name" : associated id number (int)}
+"""
+
 # Add project root to path so we can import from models/
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from models.generators.generator_factory import get_generator, get_default_config
@@ -105,7 +118,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    log_file = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
+    # log_file = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
 
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
@@ -123,24 +136,68 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
     # load the data
     sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
-
-    # size of possible tokens
-    #vocab_size = max(max(seq) for seq in sequences) + 1
+    max_id_in_data = -1
+    sample_count = min(len(sequences), 100) # only check 100 sequences 
 
     # load vocab
+    token_to_id = None
+    vocab_size = None
+
+    # if naive, determine vocab size by number of ids
+    # ADD ONE BC FIRST ID = 0
     if (DATA_DIR / "note_to_int.pkl").exists(): # naive
         import pickle
-        # load the note-to-int mapping
         with open(DATA_DIR / "note_to_int.pkl", "rb") as f:
             vocab_data = pickle.load(f)
-        vocab_size = len(vocab_data["note_to_int"])
+        
+        token_to_id = vocab_data["note_to_int"]
+        # token_to_id is expected token(str)->id(int)
+        # compute vocab_size as max_id+1 to be safe
+        max_id = max(token_to_id.values()) if token_to_id else -1
+        vocab_size = max_id + 1 if max_id >= 0 else len(token_to_id)
+
     elif (DATA_DIR / "vocab.json").exists(): # miditok
-        # load the vocab json file
         with open(DATA_DIR / "vocab.json", "r") as f:
             vocab = json.load(f)
-        vocab_size = len(vocab)
+
+        if isinstance(vocab, dict):
+            # detect whether values are ints (token->id) or strings (id->token)
+            sample_val = next(iter(vocab.values()))
+            if isinstance(sample_val, int):
+                token_to_id = {str(k): int(v) for k, v in vocab.items()}
+                max_id = max(token_to_id.values()) if token_to_id else -1
+                vocab_size = max_id + 1
+            else:
+                # values are likely token strings with keys as ids
+                token_to_id = {str(tok): idx for idx, tok in enumerate(vocab.items())}
+                max_id = max(token_to_id.values()) if token_to_id else -1
+                vocab_size = max_id + 1
+        elif isinstance(vocab, list):
+            token_to_id = {str(tok): idx for idx, tok in enumerate(vocab)}
+            vocab_size = len(vocab)
+        else:
+            raise ValueError("unrecognized vocab.json format: expected dict or list.")
     else:
-        raise FileNotFoundError("No vocabulary file found in the data directory.")
+        raise FileNotFoundError(f"no vocab file found in the data directory ({DATA_DIR})")
+    
+    for i in range(sample_count):
+        seq = sequences[i]
+        if len(seq) == 0: # skip if it has 0 length
+            continue
+        # seq elements might already be ints. ensure you don't cast strings wrongly
+        try:
+            seq_max = max(int(x) for x in seq)
+        except Exception as e:
+            print("error: found non-int token(s) in sequences.npy - sample seq:", sequences[i][:50])
+            raise
+        
+        max_id_in_data = max(max_id_in_data, seq_max)
+
+    if max_id_in_data >= vocab_size:
+        raise ValueError(
+            f"token id in data ({max_id_in_data}) >= vocab_size ({vocab_size})."
+            "this indicates vocab.json/vocab mapping and sequences are inconsistent"
+        )
     
     print(f"Vocab size: {vocab_size}, Sequence length: {seq_length}, Device: {device}")
     if subsample_ratio < 1.0:
@@ -183,9 +240,29 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         dim_feedforward=dim_feedforward,
         dropout=dropout
     ).to(device)
+
+    print(f"quick data check: sample_count={sample_count}, max_token_id_in_sampled_sequences={max_id_in_data}")
+    print(f"interpreted vocab_size = {vocab_size} (from vocab.json)")
+
+    # added this when trying to figure out why miditok was taking so long
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Embedding):
+            assert module.num_embeddings >= vocab_size, (
+                f"embedding num_embeddings ({module.num_embeddings}) < vocab size ({vocab_size})."
+                "your model was likely built with th wrong vocab size. rebuild using correct vocab.json"
+            )
+            print(f"embedding check passed: {name}.num_embeddings = {module.num_embeddings}")
+        else:
+            print("warning: no nn.embedding module found in model to check")
     
-    loss_function = nn.CrossEntropyLoss() # suitable for multi-class classification
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    # trying label smoothing to prevent overfitting (miditok)
+    loss_function = nn.CrossEntropyLoss(label_smoothing=0.1) # suitable for multi-class classification
+    # added weight decay to try to fix overfitting (miditok)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+
+    # add a scheduler if miditok (changes learning rate)
+    if dataset == 'miditok' or dataset == 'miditok_augmented':
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
     
     print(f"Model type: {model_type}")
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
@@ -199,7 +276,28 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
     # training loop
     start_time = time.time() # start time tracking
-    print(f"Starting training at: {start_time}")
+    
+    # Calculate and display training info
+    total_train_batches = len(dataloader) if not max_batches else min(max_batches, len(dataloader))
+    batches_per_epoch = total_train_batches
+    estimated_time_per_epoch = "calculating..."
+    
+    print("\n" + "="*60)
+    print("TRAINING CONFIGURATION")
+    print("="*60)
+    print(f"Dataset: {dataset}")
+    print(f"Model: {model_type}")
+    print(f"Epochs: {epochs}")
+    print(f"Batch size: {batch_size}")
+    print(f"Batches per epoch: {batches_per_epoch:,}")
+    print(f"Learning rate: {learning_rate}")
+    if val_dataloader:
+        print(f"Validation batches: {len(val_dataloader):,}")
+        if patience:
+            print(f"Early stopping patience: {patience}")
+    print("="*60)
+    print(f"\nLarge datasets may take several minutes per epoch")
+    print(f" Watch the progress bar to see training is active\n")
     
     for epoch in range(epochs):
         
@@ -208,8 +306,16 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         epoch_loss = 0
         num_batches = 0
 
+        # Create progress bar for batches
+        # For large datasets, show progress every batch. For small ones, less verbose.
+        total_batches = max_batches if max_batches else len(dataloader)
+        batch_progress = tqdm(enumerate(dataloader), total=total_batches, 
+                             desc=f"Epoch {epoch+1}/{epochs}", 
+                             unit="batch",
+                             ncols=100)
+        
         # iterate over batch indexes and data
-        for batch_idx, (x, y) in enumerate(dataloader):
+        for batch_idx, (x, y) in batch_progress:
             # limit number of batches for quick testing
             if max_batches and batch_idx >= max_batches:
                 break
@@ -223,11 +329,19 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             loss = loss_function(output.view(-1, vocab_size), y.view(-1))
             # backpropagation and optimization step
             loss.backward()
+
+            if dataset == 'miditok' or dataset == 'miditok_augmented':
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping to help with overfitting (miditok)
+            
             optimizer.step()
 
             # accumulate loss
             epoch_loss += loss.item()
             num_batches += 1
+            
+            # Update progress bar with current loss every 100 batches
+            if batch_idx % 100 == 0:
+                batch_progress.set_postfix({'loss': f'{loss.item():.4f}'})
 
         # average loss for the epoch
         avg_loss = epoch_loss / num_batches
@@ -239,18 +353,29 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
             val_loss = 0
             val_batches = 0
             
+            # Progress bar for validation
+            val_progress = tqdm(val_dataloader, desc="Validating", unit="batch", ncols=100, leave=False)
+            
             with torch.no_grad():
-                for x, y in val_dataloader:
+                for x, y in val_progress:
                     x, y = x.to(device), y.to(device)
                     output, _ = model(x)
                     loss = loss_function(output.view(-1, vocab_size), y.view(-1))
                     val_loss += loss.item()
                     val_batches += 1
             
+            # find average validation loss
             avg_val_loss = val_loss / val_batches
             val_losses.append(avg_val_loss)
+
+            if dataset == 'miditok' or dataset == 'miditok_augmented':
+                scheduler.step(avg_val_loss) # call scheduler after validation (adjusts learning rate)
             
-            print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+            print(f"\n{'='*60}")
+            print(f"Epoch {epoch+1}/{epochs} Summary:")
+            print(f"  Train Loss: {avg_loss:.4f}")
+            print(f"  Val Loss:   {avg_val_loss:.4f}")
+            print(f"  Gap:        {avg_val_loss - avg_loss:+.4f}")
             
             # Early stopping check (only if patience is set)
             if patience is not None and patience > 0:
@@ -263,15 +388,21 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
                     patience_counter += 1
                     print(f"  ✗ Val loss increased ({patience_counter}/{patience})")
                     
+                    # quit if model has been getting worse over the specified number of epochs (patience)
                     if patience_counter >= patience:
-                        print(f"\nEarly stopping triggered after {epoch+1} epochs")
+                        print(f"\n{'='*60}")
+                        print(f"Early stopping triggered after {epoch+1} epochs")
+                        print(f"{'='*60}")
                         # Restore best model
                         if best_model_state is not None:
                             model.load_state_dict(best_model_state)
                             print("Restored best model weights")
                         break
+            print(f"{'='*60}\n")
         else:
+            print(f"\n{'='*60}")
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+            print(f"{'='*60}\n")
 
     # get current time stamp
     total_time = time.time() - start_time # total training time
@@ -291,7 +422,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     loss_plot_dir = Path(f"{OUTPUT_DIR}/training_loss")
     loss_plot_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(loss_plot_dir / f"training_loss_{timestamp}.png")
-    #plt.show()
+    plt.close('all')  # close stuff to free memory
 
     # return hyperparameters and results for logging
     hparams = {
@@ -343,7 +474,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         })
 
     # log the experiment
-    log_experiment(hparams, results, log_file)
+    log_experiment(hparams, results, LOG_FILE)
 
 # allow command line arguments for hyperparameters
 if __name__ == "__main__":
@@ -354,7 +485,7 @@ if __name__ == "__main__":
                         default="lstm", help="Type of generator architecture")
     
     # Data and training
-    parser.add_argument("--dataset", type=str, choices=["naive", "miditok"],
+    parser.add_argument("--dataset", type=str, choices=["naive", "miditok", "miditok_augmented"],
                         default="naive", help="Which dataset preprocessing to use")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")

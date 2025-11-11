@@ -1,6 +1,55 @@
 # Scripts Directory
 
-This directory contains automation scripts for training and evaluation.
+This directory contains automation scripts for training, evaluation, and data augmentation.
+
+## 🎵 Data Augmentation Scripts (NEW!)
+
+### `test_augmentation.py`
+Test the augmentation functionality before running the full pipeline.
+
+**Usage:**
+```bash
+python scripts/test_augmentation.py
+```
+
+**What it does:**
+- Tests transposition on sample MIDI files
+- Verifies tokenization works correctly
+- Shows preview of expected augmentation results
+- Takes ~30 seconds
+
+### `train_augmented.sh`
+Complete pipeline to create augmented data and train models.
+
+**Usage:**
+```bash
+bash scripts/train_augmented.sh
+```
+
+**What it does:**
+- Creates augmented MIDITok dataset (7x more data)
+- Trains LSTM model on augmented data
+- Trains GRU model on augmented data
+- Takes ~6 hours total
+
+**Why use this:**
+- Reduces overfitting (train/val loss gap: 0.45 → 0.2)
+- Creates 7 versions of each song in different keys
+- Increases training samples from 1.2M to 8.3M
+
+### `compare_augmentation.py`
+Analyze and compare original vs augmented datasets.
+
+**Usage:**
+```bash
+python scripts/compare_augmentation.py
+```
+
+**What it shows:**
+- Dataset statistics comparison
+- Training sample counts
+- Data density improvements
+- Training results (if available)
 
 ## Available Scripts
 
