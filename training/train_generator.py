@@ -2,11 +2,17 @@ import csv
 import datetime
 from pathlib import Path
 import sys
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
+
+# Set matplotlib backend for non-interactive environments (Colab, servers)
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
+
 import argparse
 import time
 from tqdm import tqdm
@@ -232,14 +238,37 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
     # create dataset and dataloader with lazy loading
     train_dataset = MIDIDataset(train_sequences, seq_length=seq_length, subsample_ratio=subsample_ratio)
-    # Note: num_workers=0 to avoid multiprocessing issues on macOS with MPS
-    # pin_memory=False because MPS doesn't support it
-    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False)
+    
+    # Configure DataLoader based on device
+    # CUDA: Use multiple workers and pin memory for fast GPU transfer
+    # MPS (macOS): Use single worker and no pinning due to compatibility issues
+    if device == "cuda":
+        num_workers = 4
+        pin_memory = True
+    else:
+        num_workers = 0
+        pin_memory = False
+    
+    dataloader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        num_workers=num_workers, 
+        pin_memory=pin_memory,
+        persistent_workers=True if num_workers > 0 else False
+    )
     
     # Create validation dataloader if needed
     if val_sequences is not None:
         val_dataset = MIDIDataset(val_sequences, seq_length=seq_length, subsample_ratio=1.0)  # Don't subsample val
-        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
+        val_dataloader = DataLoader(
+            val_dataset, 
+            batch_size=batch_size, 
+            shuffle=False, 
+            num_workers=num_workers, 
+            pin_memory=pin_memory,
+            persistent_workers=True if num_workers > 0 else False
+        )
     else:
         val_dataloader = None
 

@@ -20,19 +20,6 @@ if [ ! -d "/content" ]; then
 else
     echo "✅ Running in Google Colab environment"
     
-    # Check if Google Drive is mounted
-    if [ ! -d "/content/drive/MyDrive" ]; then
-        echo ""
-        echo "❌ ERROR: Google Drive is not mounted!"
-        echo ""
-        echo "Please run these commands in a Colab cell first:"
-        echo ""
-        echo "  from google.colab import drive"
-        echo "  drive.mount('/content/drive')"
-        echo ""
-        echo "Then run this script again."
-        exit 1
-    fi
     
     # Create checkpoint directory
     CHECKPOINT_DIR="/content/drive/MyDrive/csce585_model_checkpoints"
@@ -110,19 +97,19 @@ echo ""
 
 echo ""
 echo "1. Training Large LSTM (1024 hidden, 4 layers)..."
-echo "   Estimated time: 3-4 hours"
+echo "   Estimated time: 1.5-2 hours (with A100 optimizations)"
 echo ""
 
 python training/train_generator.py \
     --dataset miditok_augmented \
     --model_type lstm \
     --epochs 20 \
-    --batch_size 256 \
+    --batch_size 512 \
     --lr 0.001 \
     --hidden_size 1024 \
     --num_layers 4 \
     --dropout 0.4 \
-    --val_split 0.1 \
+    --val_split 0.05 \
     --patience 5 \
     --device cuda \
     --checkpoint_dir "$CHECKPOINT_DIR"
@@ -137,19 +124,19 @@ echo ""
 
 echo ""
 echo "2. Training Large GRU (1024 hidden, 4 layers)..."
-echo "   Estimated time: 2-3 hours"
+echo "   Estimated time: 1-1.5 hours (with A100 optimizations)"
 echo ""
 
 python training/train_generator.py \
     --dataset miditok_augmented \
     --model_type gru \
     --epochs 20 \
-    --batch_size 256 \
+    --batch_size 512 \
     --lr 0.001 \
     --hidden_size 1024 \
     --num_layers 4 \
     --dropout 0.4 \
-    --val_split 0.1 \
+    --val_split 0.05 \
     --patience 5 \
     --device cuda \
     --checkpoint_dir "$CHECKPOINT_DIR"
@@ -164,21 +151,21 @@ echo ""
 
 echo ""
 echo "3. Training Large Transformer (1024 d_model, 8 layers)..."
-echo "   Estimated time: 5-6 hours"
+echo "   Estimated time: 3-4 hours (with A100 optimizations)"
 echo ""
 
 python training/train_generator.py \
     --dataset miditok_augmented \
     --model_type transformer \
     --epochs 20 \
-    --batch_size 128 \
+    --batch_size 256 \
     --lr 0.0001 \
     --d_model 1024 \
     --nhead 16 \
     --transformer_layers 8 \
     --dim_feedforward 4096 \
     --dropout 0.3 \
-    --val_split 0.1 \
+    --val_split 0.05 \
     --patience 5 \
     --device cuda \
     --checkpoint_dir "$CHECKPOINT_DIR"
