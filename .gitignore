@@ -38,7 +38,8 @@ env/
 Thumbs.db
 
 # scripts
-# scripts/
+# will make separate folder for colab notebooks and final scipts for submission
+scripts/
 
 # Logs
 *.log
