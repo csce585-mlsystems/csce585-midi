@@ -259,7 +259,7 @@ ls  data/naive/sequences.npy  data/miditok/sequences.npy  data/measures/measure_
 
 ### Development Platform
 
--  **Hardware**: MacBook Air M1 (8GB RAM)
+-  **Hardware**: MacBook Air M1 (8GB RAM) and A100 GPU via Google Colab
 
 -  **OS**: macOS Sequoia
 
@@ -270,23 +270,6 @@ ls  data/naive/sequences.npy  data/miditok/sequences.npy  data/measures/measure_
 -  **PyTorch**: 2.9.0+
 
   
-
-### Training Time Estimates
-
-On M1 MacBook Air:
-
--  **LSTM Generator** (5 epochs): ~15 minutes
-
--  **GRU Generator** (20 epochs): ~50 minutes
-
--  **Transformer models**: ~1-2 hours
-
-  
-
----
-
-  
-
 ## Project Structure
 
   
@@ -326,6 +309,7 @@ csce585-midi/
   
 
 ### 1. Train a Generator Model
+Command-line arguments for generator training are detailed in the GitHub Wiki (Generator Training Arguments Page)
 
 ```bash
 # Make sure venv is activated

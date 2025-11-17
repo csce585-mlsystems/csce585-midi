@@ -226,7 +226,11 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     if val_split > 0:
         print(f"Val split: {val_split}, Early stopping patience: {patience if patience else 'disabled'}")
 
-    # Split data into train and validation
+    """
+        val_split is the percentage of the dataset you want to use for validation
+        (model won't be trained on these; they're only used to see how good it's
+        learning to generalize)
+    """
     if val_split > 0:
         split_idx = int(len(sequences) * (1 - val_split))
         train_sequences = sequences[:split_idx]
