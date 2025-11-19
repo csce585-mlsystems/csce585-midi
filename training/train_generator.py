@@ -53,10 +53,14 @@ DEFAULT_SEQ_LENGTH = 50
 # dataset
 class MIDIDataset(Dataset):
     """Lazy-loading dataset that generates samples on-the-fly to avoid memory issues."""
-    def __init__(self, sequences, seq_length=DEFAULT_SEQ_LENGTH, subsample_ratio=1.0):
+    def __init__(self, sequences, seq_length=DEFAULT_SEQ_LENGTH, subsample_ratio=0.05):
         # Store references to sequences instead of creating all samples upfront
         self.sequences = [list(map(int, seq)) for seq in sequences if len(seq) >= seq_length]
         self.seq_length = seq_length
+
+        if subsample_ratio <= 0:
+            print("Negative subsample ratio")
+            raise ValueError
         
         # Calculate indices for each sequence
         self.sequence_indices = []
@@ -65,7 +69,7 @@ class MIDIDataset(Dataset):
             num_samples = len(seq) - seq_length
             if subsample_ratio < 1.0:
                 # Subsample by taking every Nth sample
-                step = int(1.0 / subsample_ratio)
+                step = max(1, int(1.0 / subsample_ratio))
                 indices = list(range(0, num_samples, step))
             else:
                 # enumerate each starting index
@@ -300,8 +304,6 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
                 "your model was likely built with th wrong vocab size. rebuild using correct vocab.json"
             )
             print(f"embedding check passed: {name}.num_embeddings = {module.num_embeddings}")
-        else:
-            print("warning: no nn.embedding module found in model to check")
     
     # trying label smoothing to prevent overfitting (miditok)
     loss_function = nn.CrossEntropyLoss(label_smoothing=0.1) # suitable for multi-class classification
