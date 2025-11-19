@@ -113,7 +113,7 @@ def log_experiment(hparams, results, logfile):
     
 def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, num_layers=2,
           batch_size=32, epochs=10, learning_rate=0.001, device=None, max_batches=None,
-          d_model=256, nhead=8, dim_feedforward=1024, dropout=0.2, 
+          d_model=256, nhead=8, dim_feedforward=1024, dropout=0.4, 
           subsample_ratio=1.0, patience=None, val_split=0.0, checkpoint_dir=None):
     
     # directories
@@ -310,7 +310,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     # trying label smoothing to prevent overfitting (miditok)
     loss_function = nn.CrossEntropyLoss(label_smoothing=0.1) # suitable for multi-class classification
     # added weight decay to try to fix overfitting (miditok)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
 
     # add a scheduler if miditok (changes learning rate)
     if dataset == 'miditok' or dataset == 'miditok_augmented':
@@ -621,7 +621,7 @@ if __name__ == "__main__":
                         help="Hidden size (for LSTM/GRU)")
     parser.add_argument("--num_layers", type=int, default=2, 
                         help="Number of layers")
-    parser.add_argument("--dropout", type=float, default=0.2,
+    parser.add_argument("--dropout", type=float, default=0.4,
                         help="Dropout rate")
     
     # Transformer architecture parameters
