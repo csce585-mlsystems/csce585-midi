@@ -39,7 +39,7 @@ import os
 os.makedirs("outputs", exist_ok=True)
 
 # hyperparameters
-#SEQ_LENGTH = 50 # notes per input sequence (getting rid of this and using config from preprocess_miditok.py)
+# SEQ_LENGTH = 50 # notes per input sequence (getting rid of this and using config from preprocess_miditok.py)
 # BATCH_SIZE = 32
 # EPOCHS = 10
 # LEARNING_RATE = 0.001
@@ -47,8 +47,6 @@ os.makedirs("outputs", exist_ok=True)
 # model log file
 
 DEFAULT_SEQ_LENGTH = 50
-
-# LOG_FILE = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
 
 # dataset
 class MIDIDataset(Dataset):
@@ -143,8 +141,6 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     
-    # log_file = f"logs/{dataset}/models.csv" #(need to go to correct folder based on preprocessing used)
-
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -175,8 +171,9 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         with open(DATA_DIR / "note_to_int.pkl", "rb") as f:
             vocab_data = pickle.load(f)
         
-        token_to_id = vocab_data["note_to_int"]
         # token_to_id is expected token(str)->id(int)
+        token_to_id = vocab_data["note_to_int"]
+        
         # compute vocab_size as max_id+1 to be safe
         max_id = max(token_to_id.values()) if token_to_id else -1
         vocab_size = max_id + 1 if max_id >= 0 else len(token_to_id)
@@ -236,9 +233,14 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         learning to generalize)
     """
     if val_split > 0:
+        # shuffle indices deterministically (for reproducibility)
+        rng = np.random.default_rng(seed=42)  # random num generator
+        perm = rng.permutation(len(sequences))
         split_idx = int(len(sequences) * (1 - val_split))
-        train_sequences = sequences[:split_idx]
-        val_sequences = sequences[split_idx:]
+        train_idx = perm[:split_idx]
+        val_idx = perm[split_idx:]
+        train_sequences = sequences[train_idx]
+        val_sequences = sequences[val_idx]
         print(f"Train sequences: {len(train_sequences)}, Val sequences: {len(val_sequences)}")
     else:
         train_sequences = sequences
