@@ -111,6 +111,7 @@ def preprocess_miditok():
 
     sequences = []
     skipped_files = []
+    filename_to_index = {}  # Map from filename to sequence index
 
     # process each MIDI
     print("Processing MIDI files...")
@@ -118,6 +119,7 @@ def preprocess_miditok():
     for midi_file in tqdm(midi_files, desc="Tokenizing"):
         seq, error = preprocess_file(midi_file, tokenizer)
         if error is None:
+            filename_to_index[midi_file.name] = len(sequences)  # Store mapping
             sequences.append(seq)
         else:
             skipped_files.append((midi_file.name, error))
@@ -150,6 +152,12 @@ def preprocess_miditok():
     sequences_path = OUTPUT_DIR / "sequences.npy"
     np.save(sequences_path, np.array(sequences, dtype=object), allow_pickle=True)
     print(f"Saved sequences to: {sequences_path}")
+
+    # save filename to index mapping
+    mapping_path = OUTPUT_DIR / "filename_to_index.json"
+    with open(mapping_path, 'w') as f:
+        json.dump(filename_to_index, f, indent=2)
+    print(f"Saved filename mapping to: {mapping_path}")
 
     # save tokenizer params
     tokenizer_path = OUTPUT_DIR / "tokenizer.json"
@@ -187,6 +195,7 @@ def preprocess_miditok():
     print("=" * 60)
     print(f"\nOutput files in {OUTPUT_DIR}:")
     print(f"  - sequences.npy      ({len(sequences)} sequences)")
+    print(f"  - filename_to_index.json (filename mappings)")
     print(f"  - tokenizer.json     (tokenizer configuration)")
     print(f"  - vocab.json         ({len(tokenizer)} tokens)")
     print(f"  - config.json        (dataset metadata)")

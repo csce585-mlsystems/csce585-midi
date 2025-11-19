@@ -89,6 +89,7 @@ def midi_to_notes(file_path):
 def build_dataset(data_dir=DATA_DIR, output_file=OUTPUT_FILE):
     sequences = []
     skipped_files = []
+    filename_to_index = {}  # Map from filename to sequence index
     
     # collect all MIDI files
     midi_files = []
@@ -106,6 +107,7 @@ def build_dataset(data_dir=DATA_DIR, output_file=OUTPUT_FILE):
             with time_limit(TIMEOUT_SECONDS):
                 notes = midi_to_notes(file_path)
                 if notes:
+                    filename_to_index[Path(file_path).name] = len(sequences)  # Store mapping
                     sequences.append(notes)
                 else:
                     skipped_files.append((Path(file_path).name, "No notes found"))
@@ -141,6 +143,13 @@ def build_dataset(data_dir=DATA_DIR, output_file=OUTPUT_FILE):
     np.save(output_file, np.array(int_sequences, dtype=object), allow_pickle=True)
     print(f"saved {len(int_sequences)} sequences to {output_file}")
     print(f"Vocabulary size: {len(vocab)}")
+
+    # save filename to index mapping
+    import json
+    mapping_path = OUTPUT_DIR / "filename_to_index.json"
+    with open(mapping_path, 'w') as f:
+        json.dump(filename_to_index, f, indent=2)
+    print(f"Saved filename mapping to {mapping_path}")
 
     # save int -> note mapping
     with open(VOCAB_FILE, "wb") as f:

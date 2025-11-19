@@ -632,8 +632,15 @@ class TestPreprocessMiditok:
         preprocess_miditok()
         
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
-        # Should have sequences from both tracks
-        assert len(sequences) >= 2
+        # Should have 1 sequence (file) containing multiple tracks
+        assert len(sequences) == 1
+        # The sequence should be a list or array of tracks
+        assert isinstance(sequences[0], (list, np.ndarray))
+        # Should have 2 tracks
+        assert len(sequences[0]) >= 2
+        # Each track should have tokens
+        for track in sequences[0]:
+            assert len(track) > 0
     
     @patch('utils.preprocess_miditok.INPUT_DIR')
     @patch('utils.preprocess_miditok.OUTPUT_DIR')
