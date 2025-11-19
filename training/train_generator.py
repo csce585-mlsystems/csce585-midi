@@ -130,7 +130,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     else:
         MODEL_DIR = Path(f"models/generators/checkpoints/{dataset}")
         OUTPUT_DIR = Path(f"outputs/generators/{dataset}")
-        LOG_DIR = Path(f"logs/generators/{dataset}")
+        LOG_DIR = Path(f"logs/generators/{dataset}/models")
     
     LOG_FILE = LOG_DIR / "models.csv"
 
