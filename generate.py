@@ -223,12 +223,21 @@ def generate(
     seed_style="random",
     pitch_preference="medium",
     complexity="medium",
-    seed_length="medium"
+    seed_length="medium",
+    # adding these too allow different model sizes
+    hidden_size=None,
+    num_layers=None,
+    embed_size=None,
+    d_model=None,
+    nhead=None,
+    dim_feedforward=None
 ):
     
     # infer dataset (miditok or naive) from the model file path
     model_path = Path(model_path)
-    if "miditok" in model_path.parts:
+    if "miditok_augmented" in model_path.parts:
+        dataset = "miditok_augmented"
+    elif "miditok" in model_path.parts:
         dataset = "miditok"
     elif "naive" in model_path.parts:
         dataset = "naive"
@@ -246,7 +255,7 @@ def generate(
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True) # ensure output dir exists
     
     # load the vocab
-    if dataset == "miditok":
+    if dataset == "miditok" or dataset == "miditok_augmented":
         with open(DATA_DIR / "vocab.json", "r") as f:
             vocab = json.load(f)
         vocab_size = len(vocab)
@@ -269,7 +278,8 @@ def generate(
             sequences, int_to_note,
             pitch_preference=pitch_preference,
             complexity=complexity,
-            length=seed_length
+            length=seed_length,
+            dataset=dataset
         )[:seq_length]
 
     generated = seed.copy() # start with the seed
@@ -278,9 +288,10 @@ def generate(
     # Load checkpoint first to inspect architecture
     checkpoint = torch.load(model_path, map_location=DEVICE)
     
-    # Try to infer num_layers from checkpoint structure
-    # For transformers, check how many decoder layers exist
-    num_layers = 2  # default that was used in training
+    # infer architecture from checkpoint key
+    inferred_num_layers = 2  # default that was used in training
+    inferred_hidden_size = 256 # default
+
     if model_type == "transformer":
         # Count transformer decoder layers in checkpoint
         layer_keys = [k for k in checkpoint.keys() if k.startswith("transformer_decoder.layers.")]
@@ -288,19 +299,69 @@ def generate(
             layer_nums = [int(k.split('.')[2]) for k in layer_keys if k.split('.')[2].isdigit()]
             if layer_nums:
                 num_layers = max(layer_nums) + 1  # +1 because layers are 0-indexed
+
+        # infer d_model from embedding weight shape
+        if "embedding.weight" in checkpoint:
+            inferred_hidden_size = checkpoint["embedding.weight"].shape[1]
+
+    else:  # LSTM or GRU
+        # count rnn layers by looking for weight keys
+        layer_keys = []
+        if model_type == "lstm":
+            layer_keys = [k for k in checkpoint.keys() if k.startswith("lstm.weight_ih_l")]
+        elif model_type == "gru":
+            layer_keys = [k for k in checkpoint.keys() if k.startswith("gru.weight_ih_l")]
+
+        if layer_keys:
+            layer_nums = [int(k.split('_l')[1]) for k in layer_keys]
+            inferred_num_layers = max(layer_nums) + 1 # +1 bc zero indexed
+
+        # infer hidden_size from first layer weight shape
+        weight_key = f"{model_type}.weight_hh_l0"
+        if weight_key in checkpoint:
+            # weight_hh shape is (3*hidden_size, hidden_size) for gru
+            # or (4*hidden_size, hidden_size) for lstm
+            weight_shape = checkpoint[weight_key].shape
+            multiplier = 3 if model_type == "gru" else 4
+            inferred_hidden_size = weight_shape[1] # second dim is hidden_size
+
+    # use command-line args if provided otherwise use inferred
+    final_num_layers = num_layers if num_layers is not None else inferred_num_layers
+    final_hidden_size = hidden_size if hidden_size is not None else inferred_hidden_size
+    final_embed_size = embed_size if embed_size is not None else 128
+
+    print(f"Inferred architecture: {final_num_layers} layers, hidden_size={final_hidden_size}")
     
     # Create model with correct architecture
     if model_type == "transformer":
-        model = get_generator(model_type, vocab_size, num_layers=num_layers, d_model=256, nhead=8, dim_feedforward=1024, dropout=0.1)
-    else:
-        # LSTM/GRU with standard parameters
-        model = get_generator(model_type, vocab_size, embed_size=128, hidden_size=256, num_layers=num_layers, dropout=0.2)
+        final_d_model = d_model if d_model is not None else final_hidden_size
+        final_nhead = nhead if nhead is not None else 8
+        final_dim_feedforward = dim_feedforward if dim_feedforward is not None else 1024
+        
+        model = get_generator(
+            model_type, 
+            vocab_size, 
+            num_layers=final_num_layers,
+            d_model=final_d_model,
+            nhead=final_nhead,
+            dim_feedforward=final_dim_feedforward,
+            dropout=0.1
+        )
+    else:  # LSTM/GRU
+        model = get_generator(
+            model_type,
+            vocab_size,
+            embed_size=final_embed_size,
+            hidden_size=final_hidden_size,
+            num_layers=final_num_layers,
+            dropout=0.2
+        )
     
-    model.load_state_dict(checkpoint) # load trained weights
-    model.to(DEVICE) # move model to the appropriate device
-    model.eval() # set to eval mode
-    print(f"Loaded {model_type} model ({num_layers} layers) with {sum(p.numel() for p in model.parameters()):,} parameters")
-
+    model.load_state_dict(checkpoint)
+    model.to(DEVICE)
+    model.eval()
+    print(f"Loaded {model_type} model with {sum(p.numel() for p in model.parameters()):,} parameters")
+    
     # load discriminator if provided
     discriminator = None
     if discriminator_path and discriminator_type:
@@ -340,7 +401,7 @@ def generate(
     output_file = OUTPUT_DIR / f"generated_{timestamp}.mid"
 
     # decode the generated sequence back to notes/chords
-    if dataset == "miditok":
+    if dataset == "miditok" or dataset == "miditok_augmented":
         # detokenize using miditok
         tokenizer = miditok.REMI()
 

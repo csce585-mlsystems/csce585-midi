@@ -62,8 +62,6 @@ def midi_to_notes(file_path):
         print(f"Error parsing {file_path}: {e}")
         return []
     
-    # make sure the file isn't empty
-    
     # Extract notes and chords
     notes = []
     # get the instrument parts
