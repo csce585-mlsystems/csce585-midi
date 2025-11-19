@@ -44,6 +44,39 @@ into integers. Tokenized data is then saved with numpy.
 
 """
 
+def preprocess_file(midi_file, tokenizer):
+    """Take a midi file and turn it into a list of token ids
+    
+    Returns:
+        tuple: (seq, error) where seq is the token sequence (or None if error)
+               and error is the error message (or None if successful)
+    """
+    try:
+        # load MIDI as a score
+        score = Score(midi_file)
+        # tokenize the score
+        token_seqs = tokenizer(score)
+        # sequence to hold
+        seq = []
+
+        # Handle multiple tracks (list of TokSequence)
+        if isinstance(token_seqs, list):
+            for ts in token_seqs:
+                # skip any empty tracks
+                if len(ts.ids) > 0:
+                    seq.append(ts.ids)  # save each full track as ints
+        # else if it's just one track
+        else:
+            seq.append(token_seqs.ids)
+
+        return seq, None
+    
+    except RuntimeError as e:
+        return None, f"RuntimeError: {str(e)}"
+    except Exception as e:
+        return None, f"Exception: {str(e)}"
+
+
 INPUT_DIR = Path("data/nottingham-dataset-master/MIDI")
 OUTPUT_DIR = Path("data/miditok")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -69,11 +102,7 @@ def preprocess_miditok():
     print(f"Sequence length (for training): {SEQ_LENGTH}")
     print()
 
-    # init tokenizer
     tokenizer = miditok.REMI()
-    print(f"Tokenizer: {tokenizer.__class__.__name__}")
-    print(f"Vocab size: {len(tokenizer)}")
-    print()
 
     # collect all midi files
     midi_files = list(INPUT_DIR.glob("*.mid"))
@@ -87,29 +116,11 @@ def preprocess_miditok():
     print("Processing MIDI files...")
     # tqdm progress bar for terminal
     for midi_file in tqdm(midi_files, desc="Tokenizing"):
-        try:
-            # load MIDI as a score
-            score = Score(midi_file)
-            # tokenize the score
-            token_seqs = tokenizer(score)
-
-            # Handle multiple tracks (list of TokSequence)
-            if isinstance(token_seqs, list):
-                for ts in token_seqs:
-                    # skip any empty tracks
-                    if len(ts.ids) > 0:
-                        sequences.append(ts.ids)  # save each full track as ints
-            # else if it's just one track
-            else:
-                sequences.append(token_seqs.ids)
-
-        except RuntimeError as e:
-            if "MiniMidi" in str(e) or "MThd" in str(e):
-                skipped_files.append((midi_file.name, "Invalid MIDI format"))
-            else:
-                skipped_files.append((midi_file.name, str(e)))
-        except Exception as e:
-            skipped_files.append((midi_file.name, str(e)))
+        seq, error = preprocess_file(midi_file, tokenizer)
+        if error is None:
+            sequences.append(seq)
+        else:
+            skipped_files.append((midi_file.name, error))
     
     print()
     print(f"Successfully tokenized: {len(sequences)} sequences")

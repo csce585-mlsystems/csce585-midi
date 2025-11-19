@@ -553,11 +553,14 @@ class TestPreprocessMiditok:
         
         assert len(sequences) > 0
         assert isinstance(sequences, np.ndarray)
-        # Each sequence should be a list of integers
+        # Each sequence is a list of tracks (nested lists)
         for seq in sequences:
             assert isinstance(seq, (list, np.ndarray))
             assert len(seq) > 0
-            assert all(isinstance(token, (int, np.integer)) for token in seq)
+            # Each track should be a list of integers
+            for track in seq:
+                assert isinstance(track, (list, np.ndarray))
+                assert all(isinstance(token, (int, np.integer)) for token in track)
     
     @patch('utils.preprocess_miditok.INPUT_DIR')
     @patch('utils.preprocess_miditok.OUTPUT_DIR')
@@ -772,9 +775,11 @@ class TestPreprocessMiditok:
         
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
         
+        # Each sequence is a list of tracks
         for seq in sequences:
-            assert all(isinstance(token, (int, np.integer)) for token in seq)
-            assert all(token >= 0 for token in seq)
+            for track in seq:
+                assert all(isinstance(token, (int, np.integer)) for token in track)
+                assert all(token >= 0 for token in track)
     
     @patch('utils.preprocess_miditok.INPUT_DIR')
     @patch('utils.preprocess_miditok.OUTPUT_DIR')

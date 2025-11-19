@@ -102,6 +102,14 @@ def analyze_sequence_properties(sequence, int_to_note, dataset="naive"):
         'length': len(sequence)
     }
 
+def find_seed_by_filename(filename, length, dataset="naive"):
+    """
+    Get a seed of desired length from a certain MIDI file.
+    This lets the user pick a song they want the model to recreate.
+    """
+    
+
+
 def find_seed_by_characteristics(
     sequences,
     int_to_note,
