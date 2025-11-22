@@ -140,10 +140,12 @@ def test_miditok_sequences_in_vocab_range():
 
     vocab_size = config["vocab_size"]
 
-    # check first sequence
+    # check first sequence (which is a list of tracks)
     first_seq = sequences[0]
-    assert all(0 <= token < vocab_size for token in first_seq), \
-        f"all tokens should be in range [0, {vocab_size}]"
+    # Iterate through each track in the sequence
+    for track in first_seq:
+        assert all(0 <= token < vocab_size for token in track), \
+            f"all tokens should be in range [0, {vocab_size}]"
     
 # MEASURE DATASET TESTS
 

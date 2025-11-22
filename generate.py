@@ -9,6 +9,7 @@ import numpy as np
 from pathlib import Path
 from music21 import stream, note, chord
 from utils.sampling import sample_next_note
+from utils.seed_selection import get_seed_by_filename
 from datetime import datetime
 
 from utils.seed_selection import find_seed_by_characteristics
@@ -230,7 +231,8 @@ def generate(
     embed_size=None,
     d_model=None,
     nhead=None,
-    dim_feedforward=None
+    dim_feedforward=None,
+    seed_file=None,
 ):
     
     # infer dataset (miditok or naive) from the model file path
@@ -271,16 +273,50 @@ def generate(
     # load data and seed
     sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
 
-    if seed_style == "random":
-        seed = list(sequences[np.random.randint(len(sequences))][:seq_length])
+    # if user wants a specific file to be used as the seed
+    if seed_file is not None:
+        # Extract just the filename if a full path was provided
+        seed_filename = Path(seed_file).name
+        print(f"Using seed file: {seed_filename}")
+        seed = get_seed_by_filename(filename=seed_filename, dataset=dataset, length=seq_length)
+        if seed is None:
+            print("\nError: Could not load seed from file.")
+            print(f"Note: Use just the filename (e.g., 'reelsa-c33.mid'), not the full path.")
+            sys.exit(1)
+    # get a random seed
+    elif seed_style == "random":
+        idx = np.random.randint(0, len(sequences))
+        seed = sequences[idx]
+
+    # smart seed selection
     else:
         seed = find_seed_by_characteristics(
-            sequences, int_to_note,
+            sequences=sequences, int_to_note=int_to_note,
             pitch_preference=pitch_preference,
             complexity=complexity,
             length=seed_length,
             dataset=dataset
         )[:seq_length]
+
+    # Handle nested list structure (tracks) from miditok for ANY seed selection method
+    if isinstance(seed, (list, np.ndarray)) and len(seed) > 0:
+        # Check if first element is a list/array (indicating tracks)
+        if isinstance(seed[0], (list, np.ndarray)):
+            # flatten tracks into single sequence
+            flat_seed = []
+            for track in seed:
+                if isinstance(track, (list, np.ndarray)):
+                    flat_seed.extend(track)
+                else:
+                    flat_seed.append(track)
+            seed = flat_seed
+
+    # ensure seed is a list and slice to correct length
+    if isinstance(seed, np.ndarray):
+        seed = seed.tolist()
+
+    if len(seed) > seq_length:
+        seed = seed[:seq_length]
 
     generated = seed.copy() # start with the seed
 
@@ -520,6 +556,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed_length", type=str, default="medium",
                         choices=["short", "medium", "long"],
                         help="Length of seed\nshort: < 50 notes\n medium: 50-100 notes\nlong: 100+ notes")
-
+    parser.add_argument("--seed_file", type=str, default=None,
+                        help="Filename of the MIDI file to use as seed (e.g., 'reelsa-c33.mid'). File must exist in the preprocessed dataset.")
     args = parser.parse_args()
     generate(**vars(args))

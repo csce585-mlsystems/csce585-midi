@@ -1,11 +1,11 @@
 {
   "seq_length": 100,
   "tokenizer": "REMI",
-  "num_sequences": 2055,
+  "num_sequences": 1034,
   "num_files_processed": 1034,
   "num_files_skipped": 0,
   "vocab_size": 284,
-  "min_seq_length": 24,
-  "max_seq_length": 11281,
-  "mean_seq_length": 673.5021897810219
+  "min_seq_length": 1,
+  "max_seq_length": 2,
+  "mean_seq_length": 1.9874274661508704
 }

@@ -13,6 +13,7 @@ def _compute_data_ranges(sequences, int_to_note, dataset, sample_size=2000):
     avg_pitches = []
     unique_counts = []
     lengths = []
+
     for seq in sample:
         props = analyze_sequence_properties(seq, int_to_note, dataset)
         if props is None:
@@ -66,6 +67,20 @@ def analyze_sequence_properties(sequence, int_to_note, dataset="naive"):
         number of unique pitches
         length of sequence
     """
+
+    # handle nested list structure
+    if isinstance(sequence, (list, np.ndarray)) and len(sequence) > 0:
+        if isinstance(sequence[0], (list, np.ndarray)):
+            # flatten tracks into single sequence
+            flat_seq = []
+            for track in sequence:
+                if isinstance(track, (list, np.ndarray)):
+                    flat_seq.extend(track)  # add all the elements of track to flat_seq
+                else:
+                    flat_seq.append(track)
+                    
+            sequence = flat_seq
+    
     notes = [int_to_note[token] for token in sequence]  # get notes from sequence
 
     # extract pitch numbers (simple heuristic)
@@ -123,12 +138,8 @@ def get_seed_by_filename(filename, dataset="naive", length=None):
         data_dir = Path("data/naive")
         mapping_file = data_dir / "filename_to_index.json"
         sequences_file = data_dir / "sequences.npy"
-    elif dataset == "miditok":
+    elif dataset == "miditok" or dataset == "miditok_augmented":
         data_dir = Path("data/miditok")
-        mapping_file = data_dir / "filename_to_index.json"
-        sequences_file = data_dir / "sequences.npy"
-    elif dataset == "miditok_augmented":
-        data_dir = Path("data/miditok_augmented")
         mapping_file = data_dir / "filename_to_index.json"
         sequences_file = data_dir / "sequences.npy"
     else:
