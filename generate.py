@@ -55,7 +55,7 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
         return logits
     
     # different required context lengths based on dataset being used
-    if dataset == "miditok":
+    if dataset == "miditok" or dataset == "miditok_augmented":
         # miditok uses multiple tokens per note, so need more tokens for context
         tokens_per_measure = 100 # conservative estimate
         min_tokens = tokens_per_measure
@@ -77,7 +77,7 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
 
     MIDDLE_C = 60  # MIDI number for Middle C (defalut)
 
-    if dataset == "miditok":
+    if dataset == "miditok" or dataset == "miditok_augmented":
         # for miditok, extract only pitch tokens
         for token_idx in recent_tokens:
             # get the token string
@@ -174,7 +174,7 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
 
         # boost logit tokens for representing these pitch classes
         for token_idx, token_str in int_to_note.items():
-            if dataset == "miditok":
+            if dataset == "miditok" or dataset == "miditok_augmented":
                 # only boost pitch tokens
                 if token_str.startswith("Pitch_"):
                     try:

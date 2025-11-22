@@ -82,6 +82,26 @@ class TestGenerate(unittest.TestCase):
         # Velocity token should NOT be boosted
         self.assertEqual(adjusted_logits[0, 2].item(), 0)
 
+    def test_apply_discriminator_guidance_miditok_augmented(self):
+        # Regression test for miditok_augmented support
+        logits = torch.zeros(1, 10)
+        context_measures = 1
+        generated_so_far = [0, 1] * 60
+        int_to_note = {0: "Pitch_60", 1: "Pitch_64"} 
+        
+        # Mock discriminator output
+        disc_output = torch.zeros(1, 52)
+        disc_output[0, 0] = 10.0 # Predict C
+        self.mock_discriminator.return_value = disc_output
+        
+        adjusted_logits = apply_discriminator_guidance(
+            logits, self.mock_discriminator, context_measures,
+            generated_so_far, int_to_note, guidance_strength=1.0, dataset="miditok_augmented"
+        )
+        
+        # Should boost Pitch_60 (C)
+        self.assertTrue((adjusted_logits[0, 0] > 0).item())
+
     @patch('generate.get_generator')
     @patch('generate.torch.load')
     @patch('generate.json.load')
@@ -547,3 +567,196 @@ class TestGenerate(unittest.TestCase):
             logits, None, 4, [0]*100, {}, 1.0, "naive"
         )
         self.assertTrue(torch.equal(result, logits))
+
+    @patch('generate.load_discriminator')
+    @patch('generate.apply_discriminator_guidance')
+    @patch('generate.get_generator')
+    @patch('generate.torch.load')
+    @patch('generate.pickle.load')
+    @patch('generate.np.load')
+    @patch('generate.open')
+    @patch('generate.sample_next_note')
+    @patch('generate.log_generated_midi')
+    def test_generate_combinations(self, mock_log, mock_sample, mock_open_func, mock_np_load, mock_pickle_load, mock_torch_load, mock_get_generator, mock_apply_guidance, mock_load_disc):
+        # Test various combinations of generator and discriminator architectures
+        
+        combinations = [
+            ("transformer", "mlp", "naive"),
+            ("gru", "transformer", "naive"),
+            ("lstm", "lstm", "miditok")
+        ]
+        
+        mock_sample.return_value = torch.tensor(0)
+        mock_np_load.return_value = [[0]*50]
+        mock_pickle_load.return_value = {"note_to_int": {"C4": 0}}
+        
+        # Mock file read for miditok json load
+        mock_file = MagicMock()
+        mock_file.read.return_value = '["token"]'
+        mock_open_func.return_value.__enter__.return_value = mock_file
+        
+        for gen_type, disc_type, dataset in combinations:
+            # Reset mocks
+            mock_get_generator.reset_mock()
+            mock_load_disc.reset_mock()
+            
+            # Setup generator mock
+            mock_get_generator.return_value = self.mock_generator
+            self.mock_generator.return_value = (torch.zeros(1, 1, 10), None)
+            
+            # Setup checkpoint mock based on gen_type
+            if gen_type == "transformer":
+                mock_torch_load.return_value = {
+                    "transformer_decoder.layers.0.self_attn.in_proj_weight": torch.zeros(10, 10),
+                    "embedding.weight": torch.zeros(10, 256)
+                }
+            elif gen_type == "gru":
+                mock_torch_load.return_value = {
+                    "gru.weight_ih_l0": torch.zeros(384, 128),
+                    "gru.weight_hh_l0": torch.zeros(384, 128)
+                }
+            else: # lstm
+                mock_torch_load.return_value = {
+                    "lstm.weight_ih_l0": torch.zeros(1024, 256)
+                }
+
+            # Run generate
+            generate(
+                model_path=f"models/generators/{dataset}/{gen_type}.pt",
+                model_type=gen_type,
+                discriminator_path=f"models/discriminators/{disc_type}.pt",
+                discriminator_type=disc_type,
+                generate_length=2
+            )
+            
+            # Verify correct models loaded
+            mock_get_generator.assert_called()
+            # Check first arg of get_generator call
+            self.assertEqual(mock_get_generator.call_args[0][0], gen_type)
+            
+            mock_load_disc.assert_called()
+            self.assertEqual(mock_load_disc.call_args[0][1], disc_type)
+        
+        for gen_type, disc_type, dataset in combinations:
+            # Reset mocks
+            mock_get_generator.reset_mock()
+            mock_load_disc.reset_mock()
+            
+            # Setup generator mock
+            mock_get_generator.return_value = self.mock_generator
+            self.mock_generator.return_value = (torch.zeros(1, 1, 10), None)
+            
+            # Setup checkpoint mock based on gen_type
+            if gen_type == "transformer":
+                mock_torch_load.return_value = {
+                    "transformer_decoder.layers.0.self_attn.in_proj_weight": torch.zeros(10, 10),
+                    "embedding.weight": torch.zeros(10, 256)
+                }
+            elif gen_type == "gru":
+                mock_torch_load.return_value = {
+                    "gru.weight_ih_l0": torch.zeros(384, 128),
+                    "gru.weight_hh_l0": torch.zeros(384, 128)
+                }
+            else: # lstm
+                mock_torch_load.return_value = {
+                    "lstm.weight_ih_l0": torch.zeros(1024, 256)
+                }
+
+            # Run generate
+            generate(
+                model_path=f"models/generators/{dataset}/{gen_type}.pt",
+                model_type=gen_type,
+                discriminator_path=f"models/discriminators/{disc_type}.pt",
+                discriminator_type=disc_type,
+                generate_length=2
+            )
+            
+            # Verify correct models loaded
+            mock_get_generator.assert_called()
+            # Check first arg of get_generator call
+            self.assertEqual(mock_get_generator.call_args[0][0], gen_type)
+            
+            mock_load_disc.assert_called()
+            self.assertEqual(mock_load_disc.call_args[0][1], disc_type)
+
+    @patch('generate.get_generator')
+    @patch('generate.torch.load')
+    @patch('generate.pickle.load')
+    @patch('generate.np.load')
+    @patch('generate.open')
+    @patch('generate.sample_next_note')
+    @patch('generate.log_generated_midi')
+    def test_sampling_strategies(self, mock_log, mock_sample, mock_open_func, mock_np_load, mock_pickle_load, mock_torch_load, mock_get_generator):
+        # Test that sampling parameters are passed correctly
+        mock_get_generator.return_value = self.mock_generator
+        self.mock_generator.return_value = (torch.zeros(1, 1, 10), None)
+        mock_torch_load.return_value = {"lstm.weight_ih_l0": torch.zeros(1024, 256)}
+        mock_pickle_load.return_value = {"note_to_int": {"C4": 0}}
+        mock_np_load.return_value = [[0]*50]
+        mock_sample.return_value = torch.tensor(0)
+        
+        strategies = ["greedy", "top_k", "top_p", "random"]
+        
+        for strategy in strategies:
+            mock_sample.reset_mock()
+            mock_sample.return_value = torch.tensor(0)
+            
+            generate(
+                model_path="models/generators/naive/lstm.pt",
+                model_type="lstm",
+                strategy=strategy,
+                temperature=0.8,
+                k=10,
+                p=0.85,
+                generate_length=1
+            )
+            
+            # Verify sample_next_note called with correct args
+            _, kwargs = mock_sample.call_args
+            self.assertEqual(kwargs['strategy'], strategy)
+            self.assertEqual(kwargs['temperature'], 0.8)
+            self.assertEqual(kwargs['k'], 10)
+            self.assertEqual(kwargs['p'], 0.85)
+
+    def test_apply_discriminator_guidance_music21_notes(self):
+        # Test music21 note parsing in naive dataset
+        logits = torch.zeros(1, 10)
+        context_measures = 1
+        # Use note names that music21 can parse
+        int_to_note = {0: "C4", 1: "E4", 2: "G4", 3: "Invalid"}
+        generated_so_far = [0, 1, 2] + [0]*20
+        
+        disc_output = torch.zeros(1, 52)
+        disc_output[0, 0] = 10.0 # Predict C (root)
+        self.mock_discriminator.return_value = disc_output
+        
+        adjusted_logits = apply_discriminator_guidance(
+            logits, self.mock_discriminator, context_measures,
+            generated_so_far, int_to_note, guidance_strength=1.0, dataset="naive"
+        )
+        
+        # C4, E4, G4 should be boosted (C major triad)
+        self.assertTrue((adjusted_logits[0, 0] > 0).item())
+        self.assertTrue((adjusted_logits[0, 1] > 0).item())
+        self.assertTrue((adjusted_logits[0, 2] > 0).item())
+        # Invalid note should not crash and not be boosted
+        self.assertEqual(adjusted_logits[0, 3].item(), 0)
+
+    def test_apply_discriminator_guidance_music21_exception(self):
+        # Test exception handling during music21 parsing
+        logits = torch.zeros(1, 10)
+        context_measures = 1
+        int_to_note = {0: "BadNote"}
+        generated_so_far = [0] * 20
+        
+        disc_output = torch.zeros(1, 52)
+        self.mock_discriminator.return_value = disc_output
+        
+        # Should default to Middle C and run without error
+        apply_discriminator_guidance(
+            logits, self.mock_discriminator, context_measures,
+            generated_so_far, int_to_note, guidance_strength=1.0, dataset="naive"
+        )
+        
+        # Verify discriminator called (meaning it parsed something, likely default C)
+        self.mock_discriminator.assert_called()
