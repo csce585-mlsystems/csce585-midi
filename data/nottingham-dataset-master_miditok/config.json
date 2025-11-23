@@ -1,0 +1,9 @@
+{
+  "seq_length": 100,
+  "tokenizer": "REMI",
+  "num_sequences": 2055,
+  "vocab_size": 284,
+  "augmentation": {
+    "enabled": false
+  }
+}

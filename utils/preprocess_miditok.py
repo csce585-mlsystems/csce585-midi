@@ -1,3 +1,4 @@
+import argparse
 import miditok
 from symusic import Score
 from pathlib import Path
@@ -44,166 +45,127 @@ into integers. Tokenized data is then saved with numpy.
 
 """
 
-def preprocess_file(midi_file, tokenizer):
-    """Take a midi file and turn it into a list of token ids
-    
-    Returns:
-        tuple: (seq, error) where seq is the token sequence (or None if error)
-               and error is the error message (or None if successful)
-    """
-    try:
-        # load MIDI as a score
-        score = Score(midi_file)
-        # tokenize the score
-        token_seqs = tokenizer(score)
-        # sequence to hold
-        seq = []
-
-        # Handle multiple tracks (list of TokSequence)
-        if isinstance(token_seqs, list):
-            for ts in token_seqs:
-                # skip any empty tracks
-                if len(ts.ids) > 0:
-                    seq.append(ts.ids)  # save each full track as ints
-        # else if it's just one track
-        else:
-            seq.append(token_seqs.ids)
-
-        return seq, None
-    
-    except RuntimeError as e:
-        return None, f"RuntimeError: {str(e)}"
-    except Exception as e:
-        return None, f"Exception: {str(e)}"
-
-
-INPUT_DIR = Path("data/nottingham-dataset-master/MIDI")
 OUTPUT_DIR = Path("data/miditok")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Default training seq length (used in train.py slicing, not here)
+# default training seq length
 SEQ_LENGTH = 100
 
-def preprocess_miditok():
+def preprocess_miditok(input_dir, output_dir=None):
     """
-    Preprocess MIDI files from nottingham using miditok
-
-    1. load all MIDI files from INPUT_DIR
-    2. tokenize each file using REMI tokenization
-    3. save tokenized sequences as .npy file
-    4. save tokenizer config and vocab
+    preprocess midi files using miditok remi without any augmentation
     """
+    input_dir = Path(input_dir)
+    if not input_dir.exists():
+        raise FileNotFoundError(f"input directory not found: {input_dir}")
+    
+    if output_dir is None:
+        output_dir = OUTPUT_DIR
+    else:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("=" * 60)
-    print("MIDITOK PREPROCESSING")
-    print("=" * 60)
-    print(f"Input directory: {INPUT_DIR}")
-    print(f"Output directory: {OUTPUT_DIR}")
-    print(f"Sequence length (for training): {SEQ_LENGTH}")
-    print()
-
+    # initialize tokenizer
     tokenizer = miditok.REMI()
 
-    # collect all midi files
-    midi_files = list(INPUT_DIR.glob("*.mid"))
-    print(f"Found {len(midi_files)} MIDI files")
-    print()
+    # collect all midi files (recursive search)
+    midi_files = list(input_dir.rglob("*.mid")) + list(input_dir.rglob("*.midi"))
 
     sequences = []
     skipped_files = []
-    filename_to_index = {}  # Map from filename to sequence index
+    num_files_processed = 0
 
-    # process each MIDI
-    print("Processing MIDI files...")
-    # tqdm progress bar for terminal
-    for midi_file in tqdm(midi_files, desc="Tokenizing"):
-        seq, error = preprocess_file(midi_file, tokenizer)
-        if error is None:
-            filename_to_index[midi_file.name] = len(sequences)  # Store mapping
-            sequences.append(seq)
-        else:
-            skipped_files.append((midi_file.name, error))
-    
-    print()
-    print(f"Successfully tokenized: {len(sequences)} sequences")
-    print(f"Skipped {len(skipped_files)} files")
+    print(f"processing {len(midi_files)} MIDI files from {input_dir}")
+
+    for midi_file in tqdm(midi_files, desc="processing files"):
+        try:
+            # load score
+            score = Score(midi_file)
+
+            # tokenize
+            token_seqs = tokenizer(score)
+
+            # handle potential list of seqs (tracks)
+            song_tracks = []
+            if isinstance(token_seqs, list):
+                for ts in token_seqs:
+                    if len(ts.ids) > 0:
+                        song_tracks.append(ts.ids)
+            else:
+                if len(token_seqs.ids) > 0:
+                    song_tracks.append(token_seqs.ids)
+            
+            if song_tracks:
+                sequences.append(song_tracks)
+                num_files_processed += 1
+
+        except Exception as e:
+            skipped_files.append((midi_file.name, str(e)))
 
     if skipped_files:
-        print("\nSkipped files:")
-        print("first 10 skipped files:\n")
-        for filename, reason in skipped_files[:10]: # first 10
-            print(f" - {filename}: {reason}")
-        if len(skipped_files) > 10:
-            print(f" ... and {len(skipped_files) - 10} more")
-
-    print()
-
-    # stats
-    seq_lengths = [len(seq) for seq in sequences]
-    print("Sequence stats:")
-    print(f"    Total sequences: {len(sequences)}")
-    print(f"    Min length: {min(seq_lengths) if seq_lengths else 0}")
-    print(f"    Max length: {max(seq_lengths) if seq_lengths else 0}")
-    print(f"    Mean length: {np.mean(seq_lengths):.1f}" if seq_lengths else 0)
-    print(f"    Median length: {np.median(seq_lengths):.1f}" if seq_lengths else 0)
-    print()
+        print("First 5 skipped files errors:")
+        for name, err in skipped_files[:5]:
+            print(f"    {name}: {err}")
 
     # save sequences
-    sequences_path = OUTPUT_DIR / "sequences.npy"
+    sequences_path = output_dir/ "sequences.npy"
     np.save(sequences_path, np.array(sequences, dtype=object), allow_pickle=True)
     print(f"Saved sequences to: {sequences_path}")
 
-    # save filename to index mapping
-    mapping_path = OUTPUT_DIR / "filename_to_index.json"
-    with open(mapping_path, 'w') as f:
-        json.dump(filename_to_index, f, indent=2)
-    print(f"Saved filename mapping to: {mapping_path}")
-
     # save tokenizer params
-    tokenizer_path = OUTPUT_DIR / "tokenizer.json"
+    tokenizer_path = output_dir / "tokenizer.json"
     tokenizer.save_params(tokenizer_path)
-    print(f"Saved tokenizer params to: {tokenizer_path}")
 
     # save vocab
     vocab = tokenizer.vocab
-    vocab_path = OUTPUT_DIR / "vocab.json"
+    vocab_path = output_dir / "vocab.json"
     with open(vocab_path, 'w') as f:
         json.dump(vocab, f, indent=2)
-    print(f"Saved vocab to: {vocab_path}")
+
+    # calculate statistics
+    all_tracks = [track for song in sequences for track in song]
+    seq_lengths = [len(track) for track in all_tracks] if all_tracks else [0]
 
     # save metadata
     config = {
         "seq_length": SEQ_LENGTH,
         "tokenizer": tokenizer.__class__.__name__,
         "num_sequences": len(sequences),
-        "num_files_processed": len(midi_files) - len(skipped_files),
+        "num_files_processed": num_files_processed,
         "num_files_skipped": len(skipped_files),
         "vocab_size": len(tokenizer),
-        "min_seq_length": int(min(seq_lengths)) if seq_lengths else 0,
-        "max_seq_length": int(max(seq_lengths)) if seq_lengths else 0,
+        "min_seq_length": min(seq_lengths) if seq_lengths else 0,
+        "max_seq_length": max(seq_lengths) if seq_lengths else 0,
         "mean_seq_length": float(np.mean(seq_lengths)) if seq_lengths else 0.0,
+        "augmentation": {
+            "enabled": False
+        }
     }
 
-    config_path = OUTPUT_DIR / "config.json"
+    config_path = output_dir / "config.json"
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
     print(f"Saved config to: {config_path}")
 
-    print()
-    print("=" * 60)
-    print("PREPROCESSING COMPLETE!")
-    print("=" * 60)
-    print(f"\nOutput files in {OUTPUT_DIR}:")
-    print(f"  - sequences.npy      ({len(sequences)} sequences)")
-    print(f"  - filename_to_index.json (filename mappings)")
-    print(f"  - tokenizer.json     (tokenizer configuration)")
-    print(f"  - vocab.json         ({len(tokenizer)} tokens)")
-    print(f"  - config.json        (dataset metadata)")
-    print()
-    print("Next steps:")
-    print("  1. Train a model: python training/train_generator.py --dataset miditok")
-    print("  2. Generate music: python generate.py --model_path models/miditok/model.pth")
-    print()
 
 if __name__ == "__main__":
-    preprocess_miditok()
+    parser = argparse.ArgumentParser(description="Preprocess MIDI with MIDITok (no augmentation)")
+    parser.add_argument(
+        "--dataset", 
+        type=str, 
+        required=True,
+        help="Path to the directory containing raw MIDI files"
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="data/miditok",
+        help="Output directory for processed data"
+    )
+    
+    args = parser.parse_args()
+    
+    preprocess_miditok(
+        input_dir=args.dataset, 
+        output_dir=args.output_dir
+    )

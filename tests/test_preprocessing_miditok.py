@@ -293,9 +293,7 @@ class TestPreprocessMiditokEdgeCases:
         
         return input_dir
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_output_directory_creation_fixed(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_output_directory_creation_fixed(self, simple_midi_files, temp_dirs):
         """Test that output directory is created if it doesn't exist - fixed version"""
         input_dir, output_dir = temp_dirs
         
@@ -305,32 +303,16 @@ class TestPreprocessMiditokEdgeCases:
         
         assert not output_dir.exists()
         
-        # Mock the path operations
-        mock_input_dir.__str__ = Mock(return_value=str(input_dir))
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        
-        # mock that properly handles path operations and creates directory
-        def mkdir_side_effect(**kwargs):
-            output_dir.mkdir(**kwargs)
-            return output_dir
-
-        mock_output_dir.mkdir = Mock(side_effect=mkdir_side_effect)
-        mock_output_dir.__truediv__ = Mock(side_effect=lambda x: output_dir / x)
-        mock_output_dir.__str__ = Mock(return_value=str(output_dir))
-        mock_output_dir.exists = Mock(return_value=False) # pretend it doesn't exist
-
         # ensure dir exists before running
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
 
         # output dir now exists
         assert output_dir.exists()
         assert (output_dir / "sequences.npy").exists()
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_very_long_sequences(self, mock_output_dir, mock_input_dir, temp_dirs):
+    def test_very_long_sequences(self, temp_dirs):
         """Test with MIDI that generates very long sequences"""
         input_dir, output_dir = temp_dirs
         
@@ -351,19 +333,12 @@ class TestPreprocessMiditokEdgeCases:
         pm.instruments.append(instrument)
         pm.write(str(input_dir / "long.mid"))
         
-        mock_input_dir.__str__ = Mock(return_value=str(input_dir))
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = Mock(side_effect=lambda x: output_dir / x)
-        mock_output_dir.mkdir = Mock(side_effect=lambda **kwargs: output_dir.mkdir(**kwargs))
-        
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
         assert len(sequences) > 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_single_note_midi(self, mock_output_dir, mock_input_dir, temp_dirs):
+    def test_single_note_midi(self, temp_dirs):
         """Test with MIDI containing only a single note"""
         input_dir, output_dir = temp_dirs
         
@@ -373,21 +348,14 @@ class TestPreprocessMiditokEdgeCases:
         pm.instruments.append(instrument)
         pm.write(str(input_dir / "single.mid"))
         
-        mock_input_dir.__str__ = Mock(return_value=str(input_dir))
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = Mock(side_effect=lambda x: output_dir / x)
-        mock_output_dir.mkdir = Mock(side_effect=lambda **kwargs: output_dir.mkdir(**kwargs))
-        
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         with open(output_dir / "config.json", 'r') as f:
             config = json.load(f)
         
         assert config["num_files_processed"] >= 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_all_tracks_drumming(self, mock_output_dir, mock_input_dir, temp_dirs):
+    def test_all_tracks_drumming(self, temp_dirs):
         """Test with MIDI where all tracks are drums"""
         input_dir, output_dir = temp_dirs
         
@@ -398,19 +366,12 @@ class TestPreprocessMiditokEdgeCases:
         pm.instruments.append(instrument)
         pm.write(str(input_dir / "drums.mid"))
         
-        mock_input_dir.__str__ = Mock(return_value=str(input_dir))
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = Mock(side_effect=lambda x: output_dir / x)
-        mock_output_dir.mkdir = Mock(side_effect=lambda **kwargs: output_dir.mkdir(**kwargs))
-        
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Should process without errors
         assert (output_dir / "sequences.npy").exists()
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_unicode_filenames(self, mock_output_dir, mock_input_dir, temp_dirs):
+    def test_unicode_filenames(self, temp_dirs):
         """Test with MIDI files having unicode characters in names"""
         input_dir, output_dir = temp_dirs
         
@@ -420,12 +381,7 @@ class TestPreprocessMiditokEdgeCases:
         pm.instruments.append(instrument)
         pm.write(str(input_dir / "test_音楽.mid"))
         
-        mock_input_dir.__str__ = Mock(return_value=str(input_dir))
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = Mock(side_effect=lambda x: output_dir / x)
-        mock_output_dir.mkdir = Mock(side_effect=lambda **kwargs: output_dir.mkdir(**kwargs))
-        
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         with open(output_dir / "config.json", 'r') as f:
             config = json.load(f)
@@ -518,19 +474,13 @@ class TestPreprocessMiditok:
         pm.write(str(input_dir / "multi_track.mid"))
         return input_dir
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_preprocess_basic(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_preprocess_basic(self, simple_midi_files, temp_dirs):
         """Test basic preprocessing functionality"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
         # Files already exist in input_dir from fixture, no need to copy
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Check output files exist
         assert (output_dir / "sequences.npy").exists()
@@ -538,17 +488,11 @@ class TestPreprocessMiditok:
         assert (output_dir / "vocab.json").exists()
         assert (output_dir / "config.json").exists()
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_sequences_saved_correctly(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_sequences_saved_correctly(self, simple_midi_files, temp_dirs):
         """Test that sequences are saved with correct format"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load sequences
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
@@ -564,17 +508,11 @@ class TestPreprocessMiditok:
                 assert isinstance(track, (list, np.ndarray))
                 assert all(isinstance(token, (int, np.integer)) for token in track)
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_tokenizer_config_saved(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_tokenizer_config_saved(self, simple_midi_files, temp_dirs):
         """Test that tokenizer configuration is saved"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load tokenizer config
         with open(output_dir / "tokenizer.json", 'r') as f:
@@ -583,17 +521,11 @@ class TestPreprocessMiditok:
         assert tokenizer_config is not None
         assert isinstance(tokenizer_config, dict)
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_vocab_saved(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_vocab_saved(self, simple_midi_files, temp_dirs):
         """Test that vocabulary is saved correctly"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load vocab
         with open(output_dir / "vocab.json", 'r') as f:
@@ -603,17 +535,11 @@ class TestPreprocessMiditok:
         assert isinstance(vocab, dict)
         assert len(vocab) > 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_config_metadata(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_config_metadata(self, simple_midi_files, temp_dirs):
         """Test that config metadata contains expected fields"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load config
         with open(output_dir / "config.json", 'r') as f:
@@ -638,18 +564,12 @@ class TestPreprocessMiditok:
         assert config["min_seq_length"] >= 0
         assert config["max_seq_length"] >= config["min_seq_length"]
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_handles_invalid_files(self, mock_output_dir, mock_input_dir, mixed_midi_files, temp_dirs):
+    def test_handles_invalid_files(self, mixed_midi_files, temp_dirs):
         """Test that invalid MIDI files are skipped"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
         # Should not raise an error
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load config to check skipped files
         with open(output_dir / "config.json", 'r') as f:
@@ -660,17 +580,11 @@ class TestPreprocessMiditok:
         # But at least one should have been processed
         assert config["num_files_processed"] > 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_multi_track_handling(self, mock_output_dir, mock_input_dir, multi_track_midi, temp_dirs):
+    def test_multi_track_handling(self, multi_track_midi, temp_dirs):
         """Test that multi-track MIDI files are handled correctly"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load sequences
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
@@ -685,17 +599,11 @@ class TestPreprocessMiditok:
         # Should show sequences were created
         assert config["num_sequences"] > 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_empty_input_directory(self, mock_output_dir, mock_input_dir, temp_dirs):
+    def test_empty_input_directory(self, temp_dirs):
         """Test behavior with empty input directory"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Should still create output files
         assert (output_dir / "sequences.npy").exists()
@@ -709,17 +617,11 @@ class TestPreprocessMiditok:
         assert config["num_sequences"] == 0
         assert config["num_files_processed"] == 0
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_sequence_statistics(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_sequence_statistics(self, simple_midi_files, temp_dirs):
         """Test that sequence statistics are calculated correctly"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load sequences and config
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
@@ -727,16 +629,16 @@ class TestPreprocessMiditok:
             config = json.load(f)
         
         # Calculate actual statistics
-        seq_lengths = [len(seq) for seq in sequences]
+        # sequences is list of songs, each song is list of tracks
+        all_tracks = [track for song in sequences for track in song]
+        seq_lengths = [len(track) for track in all_tracks]
         
         # Verify statistics in config match actual data
         assert config["min_seq_length"] == min(seq_lengths)
         assert config["max_seq_length"] == max(seq_lengths)
         assert abs(config["mean_seq_length"] - np.mean(seq_lengths)) < 0.1
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_output_directory_creation(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_output_directory_creation(self, simple_midi_files, temp_dirs):
         """Test that output directory is created if it doesn't exist"""
         input_dir, output_dir = temp_dirs
         
@@ -744,36 +646,20 @@ class TestPreprocessMiditok:
         if output_dir.exists():
             shutil.rmtree(output_dir)
         
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        
-        # Actually create the directory when mkdir is called
-        def mkdir_side_effect(**kwargs):
-            return output_dir.mkdir(**kwargs)
-        
-        mock_output_dir.mkdir = lambda **kwargs: mkdir_side_effect(**kwargs)
-        
         # Ensure directory exists before running
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Output directory should now exist
         assert output_dir.exists()
         assert (output_dir / "sequences.npy").exists()
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_sequences_are_integer_tokens(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_sequences_are_integer_tokens(self, simple_midi_files, temp_dirs):
         """Test that all tokens in sequences are integers"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         sequences = np.load(output_dir / "sequences.npy", allow_pickle=True)
         
@@ -783,17 +669,11 @@ class TestPreprocessMiditok:
                 assert all(isinstance(token, (int, np.integer)) for token in track)
                 assert all(token >= 0 for token in track)
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_vocab_size_consistency(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_vocab_size_consistency(self, simple_midi_files, temp_dirs):
         """Test that vocab size in config matches actual vocab"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
         
         # Load vocab and config
         with open(output_dir / "vocab.json", 'r') as f:
@@ -804,20 +684,14 @@ class TestPreprocessMiditok:
         # Vocab size should match
         assert config["vocab_size"] == len(vocab)
     
-    @patch('utils.preprocess_miditok.INPUT_DIR')
-    @patch('utils.preprocess_miditok.OUTPUT_DIR')
-    def test_files_processed_count(self, mock_output_dir, mock_input_dir, simple_midi_files, temp_dirs):
+    def test_files_processed_count(self, simple_midi_files, temp_dirs):
         """Test that file processing count is accurate"""
         input_dir, output_dir = temp_dirs
-        mock_input_dir.__str__ = lambda x: str(input_dir)
-        mock_input_dir.glob = lambda x: input_dir.glob(x)
-        mock_output_dir.__truediv__ = lambda self, x: output_dir / x
-        mock_output_dir.mkdir = lambda **kwargs: output_dir.mkdir(**kwargs)
         
         # Count files that already exist in input_dir
         num_files = len(list(input_dir.glob("*.mid")))
         
-        preprocess_miditok()
+        preprocess_miditok(input_dir, output_dir)
 
         with open(output_dir / "config.json", 'r') as f:
             config = json.load(f)

@@ -23,7 +23,7 @@ This helps reduce overfitting by:
 3. Exposing the model to more note combinations
 """
 
-INPUT_DIR = Path("data/nottingham-dataset-master/MIDI")
+# INPUT_DIR = Path("data/nottingham-dataset-master/MIDI")
 OUTPUT_DIR = Path("data/miditok_augmented")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -70,14 +70,20 @@ def transpose_score(score, semitones):
     return transposed
 
 
-def preprocess_miditok_augmented(transpositions=None, output_dir=None):
+def preprocess_miditok_augmented(input_dir, transpositions=None, output_dir=None):
     """
     Preprocess MIDI files with data augmentation via transposition.
     
     Args:
+        input_dir: path to the dir holding the midi files
         transpositions: list of int, semitone intervals to transpose to
         output_dir: Path, output directory for augmented data
     """
+
+    input_dir = Path(input_dir)
+    if not input_dir.exists():
+        raise FileExistsError(f"Input directory not found")
+
     if transpositions is None:
         transpositions = DEFAULT_TRANSPOSITIONS
     
@@ -90,8 +96,8 @@ def preprocess_miditok_augmented(transpositions=None, output_dir=None):
     # Initialize tokenizer
     tokenizer = miditok.REMI()
 
-    # Collect all MIDI files
-    midi_files = list(INPUT_DIR.glob("*.mid"))
+    # Collect all MIDI files (recursive search)
+    midi_files = list(input_dir.rglob("*.mid")) + list(input_dir.rglob("*.midi"))
 
     sequences = []
     skipped_files = []
@@ -217,6 +223,12 @@ def preprocess_miditok_augmented(transpositions=None, output_dir=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess MIDI with data augmentation")
     parser.add_argument(
+        "--input_dir", 
+        type=str, 
+        required=True,
+        help="Path to the directory containing raw MIDI files (e.g., 'data/nottingham/MIDI')"
+    )
+    parser.add_argument(
         "--transpositions",
         type=str,
         default="-5,-3,-1,0,1,3,5",
@@ -234,9 +246,4 @@ if __name__ == "__main__":
     # Parse transpositions
     transpositions = [int(t.strip()) for t in args.transpositions.split(",")]
     
-    print(f"\nConfiguration:")
-    print(f"  Transpositions: {transpositions}")
-    print(f"  Output directory: {args.output_dir}")
-    print()
-    
-    preprocess_miditok_augmented(transpositions=transpositions, output_dir=args.output_dir)
+    preprocess_miditok_augmented(input_dir=args.input_dir, transpositions=transpositions, output_dir=args.output_dir)

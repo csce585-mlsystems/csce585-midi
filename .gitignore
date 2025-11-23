@@ -78,6 +78,7 @@ logs/training_session_*/
 requirements.txt
 
 # Data - ignore large files but keep small tokenizer configs
+data/aria
 data/nottingham-dataset-master/
 data/measures/
 data/**/*.npy
