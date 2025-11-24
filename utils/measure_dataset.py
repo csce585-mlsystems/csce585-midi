@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 from pathlib import Path
 import pretty_midi
@@ -97,7 +98,7 @@ def build_pitch_vocab_from_midi_folder(midi_folder=MIDI_FOLDER):
     
     return pitch_vocab, mapping
 
-def build_measure_dataset(midi_folder=MIDI_FOLDER, out_dir="data/measures", beats_per_bar=4, tempo_bpm=120.0):
+def build_measure_dataset(midi_folder, out_dir="data/measures", beats_per_bar=4, tempo_bpm=120.0):
     """ Measure dataset is a sequence of measures, where each measure is represented as a binary vector
     indicating which pitches (from the pitch vocab) are present in that measure."""
     
@@ -149,5 +150,11 @@ def build_measure_dataset(midi_folder=MIDI_FOLDER, out_dir="data/measures", beat
     return all_examples, pitch_vocab, mapping
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process MIDI dataset into measure sequences.")
+    parser.add_argument("--dataset", type=str, required=True, help="path to the dataset you want to preprocess")
+    parser.add_argument("--out_dir", type=str, default="data/measures", help="where you want the output to be stored")
+
+    args = parser.parse_args()
+
     # build the measure dataset from the MIDI folder
-    build_measure_dataset()
+    build_measure_dataset(midi_folder=args.dataset, out_dir=args.out_dir)

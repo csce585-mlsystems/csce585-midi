@@ -6,6 +6,27 @@ def get_discriminator(model_type, pitch_dim, context_measures=4, **kwargs):
     """
     Factory function to create a discriminator model based on type.
         model_type: "mlp", "lstm", or "transformer"
+        pitch_dim: size of input vector
+        context_measures: how many measures used as context for predicting future measures
+        
+        hidden1: Size of the first hidden layer.
+        hidden2: Size of the second hidden layer.
+        pool: Pooling method (e.g., "concat", "max", "mean").
+        dropout: Dropout probability.
+
+        lstm and mlp args:
+        embed_size: Dimension of the input embedding.
+        hidden_size: Number of features in the LSTM hidden state.
+        num_layers: Number of recurrent layers.
+        dropout: Dropout probability.
+
+        transformer args:
+        embed_size: Maps to d_model (the number of expected features in the input).
+        hidden_size: Maps to dim_feedforward (usually multiplied by 2 internally).
+        num_heads: Maps to nhead (number of heads in the multiheadattention models).
+        num_layers: Number of sub-encoder-layers in the encoder.
+        pool: Pooling method.
+        dropout: Dropout probability.
     """
 
     model_type = model_type.lower()
