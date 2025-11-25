@@ -96,3 +96,5 @@ logs/
 # ignore model weights
 /models/**/*.pth
 /models/**/*.pt*.npy
+aria_miditok/
+*.npy

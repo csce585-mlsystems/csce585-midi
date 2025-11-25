@@ -588,7 +588,7 @@ class TestConstants:
     
     def test_timeout_constant(self):
         """Test TIMEOUT_SECONDS constant"""
-        assert TIMEOUT_SECONDS == 10
+        assert TIMEOUT_SECONDS == 300
         assert isinstance(TIMEOUT_SECONDS, int)
 
 
