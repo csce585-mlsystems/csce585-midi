@@ -78,16 +78,7 @@ logs/training_session_*/
 requirements.txt
 
 # Data - ignore large files but keep small tokenizer configs
-data/aria
-data/aria_naive
-data/nottingham-dataset-master
-data/nottingham-dataset-master_miditok
-data/miditok
-data/miditok_augmented
-data/naive
-data/measures/
-data/**/*.npy
-data/**/*.mid
+data/
 
 # Outputs and logs
 outputs/
