@@ -79,7 +79,12 @@ requirements.txt
 
 # Data - ignore large files but keep small tokenizer configs
 data/aria
-data/nottingham-dataset-master/
+data/aria_naive
+data/nottingham-dataset-master
+data/nottingham-dataset-master_miditok
+data/miditok
+data/miditok_augmented
+data/naive
 data/measures/
 data/**/*.npy
 data/**/*.mid
@@ -90,4 +95,4 @@ logs/
 
 # ignore model weights
 /models/**/*.pth
-/models/**/*.pt
+/models/**/*.pt*.npy

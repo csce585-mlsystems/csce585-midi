@@ -86,8 +86,11 @@ def build_pitch_vocab_from_midi_folder(midi_folder=MIDI_FOLDER):
     # set to hold unique pitches across all files (all possible notes)
     pitches = set()
 
+    # get anything ending in .mid or .midi
+    files = list(midi_folder.rglob("*.mid")) + list(midi_folder.rglob("*.midi"))
+
     # for each midi file
-    for f in midi_folder.glob("*.mid"):
+    for f in files:
         measures = midi_to_measure_pitches(f)
         for m in measures:
             pitches.update(m)
@@ -119,11 +122,14 @@ def build_measure_dataset(midi_folder, out_dir="data/measures", beats_per_bar=4,
 
     all_examples = [] # to hold all the measure examples
 
+    # get all of the files recursively
+    files = list(midi_folder.rglob("*.mid")) + list(midi_folder.rglob("*.midi"))
+
     # for each midi file
-    for f in midi_folder.glob("*.mid"):
+    for f in files:
         # get the measures (list of sets of pitches)
         measures = midi_to_measure_pitches(f, beats_per_bar=beats_per_bar, tempo_bpm_default=tempo_bpm)
-        if len(measures) < 2:
+        if len(measures) < 2 or measures is None:
             continue # skip files with less than 2 measures
 
         # convert each measure set to a binary vector

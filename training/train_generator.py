@@ -157,6 +157,21 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
 
     # load the data
     sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
+
+    # check for nested structure (songs -> tracks) and flatten if you need
+    # we expect sequences to be a list of tracks (each track is a list of tokens)
+    # if we find that sequences[0] contains lists/arrays instead of ints, we need to flatten
+    if len(sequences) > 0:
+        first_seq = sequences[0]
+        if len(first_seq) > 0 and isinstance(first_seq[0], (list, np.ndarray)):
+            print("detected nested sequences")
+            flat_sequences = []
+            for song in sequences:
+                # each song is list of tracks
+                flat_sequences.extend(song)
+            sequences = np.array(flat_sequences, dtype=object)
+            print(f"flattened to {len(sequences)} tracks")
+
     max_id_in_data = -1
     sample_count = min(len(sequences), 100) # only check 100 sequences 
 

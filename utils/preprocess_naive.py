@@ -15,7 +15,7 @@ DATA_DIR = Path("data/nottingham-dataset-master/MIDI")
 OUTPUT_DIR = Path("data/naive")
 OUTPUT_FILE = OUTPUT_DIR / "sequences.npy"
 VOCAB_FILE = OUTPUT_DIR / "note_to_int.pkl"
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 300  # increased from 10
 
 class TimeoutException(Exception):
     pass
@@ -72,10 +72,12 @@ def build_dataset(data_dir, output_file, vocab_file=None, seq_length=100):
     output_dir = output_file.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # make sure directory holding the data exists
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
     
     notes = []
+
     # recursive search for .mid and .midi files
     midi_files = list(input_dir.rglob("*.mid")) + list(input_dir.rglob("*.midi"))
 
@@ -83,8 +85,10 @@ def build_dataset(data_dir, output_file, vocab_file=None, seq_length=100):
 
     # parallel processing
     with Pool(processes=cpu_count()) as pool:
+        # Pool.imap applies a function on each item in an iterable
         results = list(tqdm(pool.imap(process_file, midi_files), total=len(midi_files)))
-    
+
+    # add all of the notes
     for res in results:
         notes.extend(res)
 
@@ -125,6 +129,7 @@ def build_dataset(data_dir, output_file, vocab_file=None, seq_length=100):
     print(f"Saved {len(sequences)} sequences to {output_file}")
 
 def preprocess_naive(input_dir, output_dir="data/naive", seq_length=100):
+    # make the output dir if it doesn't exist
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -143,8 +148,10 @@ def process_file(file_path):
         with time_limit(TIMEOUT_SECONDS):
             return midi_to_notes(file_path)
     except TimeoutException:
+        print(f"timed out processing {file_path}")
         return []
-    except Exception:
+    except Exception as e:
+        print(f"error processing {file_path}: {e}")
         return []
 
 if __name__ == "__main__":
