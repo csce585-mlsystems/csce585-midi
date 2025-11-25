@@ -3,7 +3,14 @@ import csv
 from pathlib import Path
 import pretty_midi
 
-
+"""
+Get all of the notes from a MIDI file, and then calculate:
+    note density,
+    pitches,
+    pitch range,
+    average polyphony,
+    number of notes
+"""
 def evaluate_midi(midi_path, logfile):
     try:
         pm = pretty_midi.PrettyMIDI(str(midi_path))

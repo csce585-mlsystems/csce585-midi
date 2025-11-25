@@ -49,6 +49,10 @@ logs/training_session_*/
 # outputs/midi/*.mid
 # outputs/*/training_loss/*.png
 
+# Data
+data/*
+!data/.gitkeep
+
 # dataset (all midi files)
 *.mid
 
@@ -76,9 +80,6 @@ logs/training_session_*/
 
 # requirements.txt is legacy
 requirements.txt
-
-# Data - ignore large files but keep small tokenizer configs
-data/
 
 # Outputs and logs
 outputs/
