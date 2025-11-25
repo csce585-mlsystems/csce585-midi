@@ -116,23 +116,31 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
           d_model=256, nhead=8, dim_feedforward=1024, dropout=0.4, 
           subsample_ratio=1.0, patience=None, val_split=0.0, checkpoint_dir=None):
     
+
     # directories
-    DATA_DIR = Path(f"data/{dataset}")
-    
+    # Check if dataset is a path or a name in data/
+    dataset_path = Path(dataset)
+    if dataset_path.exists():
+        DATA_DIR = dataset_path
+        dataset_name = dataset_path.name
+    else:
+        DATA_DIR = Path(f"data/{dataset}")
+        dataset_name = dataset
+
     # Use checkpoint_dir if provided (for Google Drive), otherwise use local directories
     if checkpoint_dir:
         BASE_DIR = Path(checkpoint_dir)
-        MODEL_DIR = BASE_DIR / dataset / "models"
-        OUTPUT_DIR = BASE_DIR / dataset / "outputs"
-        LOG_DIR = BASE_DIR / dataset / "logs"
+        MODEL_DIR = BASE_DIR / dataset_name / "models"
+        OUTPUT_DIR = BASE_DIR / dataset_name / "outputs"
+        LOG_DIR = BASE_DIR / dataset_name / "logs"
         print(f"Using checkpoint directory: {BASE_DIR}")
         print(f"  Models: {MODEL_DIR}")
         print(f"  Outputs: {OUTPUT_DIR}")
         print(f"  Logs: {LOG_DIR}")
     else:
-        MODEL_DIR = Path(f"models/generators/checkpoints/{dataset}")
-        OUTPUT_DIR = Path(f"outputs/generators/{dataset}")
-        LOG_DIR = Path(f"logs/generators/{dataset}/models")
+        MODEL_DIR = Path(f"models/generators/checkpoints/{dataset_name}")
+        OUTPUT_DIR = Path(f"outputs/generators/{dataset_name}")
+        LOG_DIR = Path(f"logs/generators/{dataset_name}/models")
     
     LOG_FILE = LOG_DIR / "models.csv"
 
@@ -621,8 +629,8 @@ if __name__ == "__main__":
                         default="lstm", help="Type of generator architecture")
     
     # Data and training
-    parser.add_argument("--dataset", type=str, choices=["naive", "miditok", "miditok_augmented"],
-                        default="naive", help="Which dataset preprocessing to use")
+    parser.add_argument("--dataset", type=str, default="naive", 
+                        help="Dataset directory path or name in data/ folder (e.g. 'naive', 'miditok', 'aria_miditok')")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
