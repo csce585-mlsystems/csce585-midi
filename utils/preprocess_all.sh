@@ -33,7 +33,7 @@ echo "Source Path: $DATASET_PATH"
 # output directories
 NAIVE_OUTPUT="data/${DATASET_NAME}_naive"
 MIDITOK_OUTPUT="data/${DATASET_NAME}_miditok"
-MIDITOK_AUG_OUTPUT="data/${DATASET_NAME}_miditok_augmented"
+MEASURE_DATASET_OUTPUT="data/${DATASET_NAME}_measure_dataset"
 
 # naive preprocessing
 echo "Running Naive Preprocessing..."
@@ -44,10 +44,10 @@ echo "Running Standard MIDITok Preprocessing..."
 python utils/preprocess_miditok.py --dataset "$DATASET_PATH" --output_dir "$MIDITOK_OUTPUT"
 
 # miditok augmented
-echo "Running Augmented MIDITok Preprocessing..."
-python utils/augment_miditok.py --dataset "$DATASET_PATH" --output_dir "$MIDITOK_AUG_OUTPUT"
+echo "Running Measure Dataset Preprocessing..."
+python utils/measure_dataset.py --dataset "$DATASET_PATH" --output_dir "$MEASURE_DATASET_OUTPUT"
 
 echo "Preprocessing Complete!"
 echo "Naive data saved to: $NAIVE_OUTPUT"
 echo "Standard tokenized data saved to: $MIDITOK_OUTPUT"
-echo "Augmented tokenized data saved to: $MIDITOK_AUG_OUTPUT"
+echo "Measure Dataset tokenized data saved to: $MEASURE_DATASET_OUTPUT"

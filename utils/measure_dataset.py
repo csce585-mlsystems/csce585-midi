@@ -158,9 +158,9 @@ def build_measure_dataset(midi_folder, out_dir="data/measures", beats_per_bar=4,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process MIDI dataset into measure sequences.")
     parser.add_argument("--dataset", type=str, required=True, help="path to the dataset you want to preprocess")
-    parser.add_argument("--out_dir", type=str, default="data/measures", help="where you want the output to be stored")
+    parser.add_argument("--output_dir", type=str, default="data/measures", help="where you want the output to be stored")
 
     args = parser.parse_args()
 
     # build the measure dataset from the MIDI folder
-    build_measure_dataset(midi_folder=args.dataset, out_dir=args.out_dir)
+    build_measure_dataset(midi_folder=args.dataset, out_dir=args.output_dir)
