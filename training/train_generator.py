@@ -81,6 +81,25 @@ class MIDIDataset(Dataset):
 
                 self.samples_per_row_subsampled = len(range(0, self.samples_per_row, self.step))
                 self.total_samples = self.num_seqs * self.samples_per_row_subsampled
+                
+                # SAFETY CHECK: If dataset is too large (>50M samples), increase step size to prevent RAM explosion during shuffling
+                # 50M samples * 8 bytes (int64) = 400MB index array, which is safe.
+                # 1.7B samples * 8 bytes = 13.6GB, which crashes standard RAM.
+                MAX_SAFE_SAMPLES = 50_000_000
+                if self.total_samples > MAX_SAFE_SAMPLES:
+                    print(f"WARNING: Dataset size ({self.total_samples:,}) exceeds safe limit for shuffling.")
+                    # Calculate new step to fit within limit
+                    # total = num_seqs * (samples_per_row / new_step)
+                    # new_step = num_seqs * samples_per_row / MAX_SAFE_SAMPLES
+                    
+                    raw_samples_per_row = self.samples_per_row
+                    needed_step = int(np.ceil((self.num_seqs * raw_samples_per_row) / MAX_SAFE_SAMPLES))
+                    self.step = max(self.step, needed_step)
+                    
+                    # Recalculate
+                    self.samples_per_row_subsampled = len(range(0, self.samples_per_row, self.step))
+                    self.total_samples = self.num_seqs * self.samples_per_row_subsampled
+                    print(f"  -> Auto-adjusted step size to {self.step} to reduce samples to {self.total_samples:,}")
 
             print(f"dataset initialized (fast mode): {self.total_samples:,} samples from {self.num_seqs} sequences")
 
