@@ -52,44 +52,99 @@ DEFAULT_SEQ_LENGTH = 50
 class MIDIDataset(Dataset):
     """Lazy-loading dataset that generates samples on-the-fly to avoid memory issues."""
     def __init__(self, sequences, seq_length=DEFAULT_SEQ_LENGTH, subsample_ratio=0.05):
+        if subsample_ratio <= 0:
+            raise ValueError("subsample_ratio must be positive")
+            
         # Store references to sequences instead of creating all samples upfront
-        self.sequences = [list(map(int, seq)) for seq in sequences if len(seq) >= seq_length]
+        self.sequences = sequences
         self.seq_length = seq_length
 
-        if subsample_ratio <= 0:
-            print("Negative subsample ratio")
-            raise ValueError
-        
-        # Calculate indices for each sequence
-        self.sequence_indices = []
-        for seq_idx, seq in enumerate(self.sequences):
-            # num_samples is number of possible starting indexes that don't go out of bounds with given seq_length
-            num_samples = len(seq) - seq_length
-            if subsample_ratio < 1.0:
-                # Subsample by taking every Nth sample
-                step = max(1, int(1.0 / subsample_ratio))
-                indices = list(range(0, num_samples, step))
+        # check if 2d numpy array (efficient) or list of lists (slow)
+        if isinstance(sequences, np.ndarray) and sequences.ndim == 2:
+            self.is_2d_array = True
+            self.num_seqs, self.row_len = sequences.shape
+
+            # calculate valid starting positions per row
+            # need seq_length + 1 tokens (input + target)
+            self.samples_per_row = self.row_len - seq_length
+
+            if self.samples_per_row <= 0:
+                # if rows are too short, we can't use them
+                self.total_samples = 0
+                print(f"warning: data sequences (len={self.row_len}) are shorter than required seq_length {seq_length})")
             else:
-                # enumerate each starting index
-                indices = list(range(num_samples))
-            
-            for i in indices:
-                self.sequence_indices.append((seq_idx, i)) # (which seq it's from, starting idx)
-        
-        print(f"Dataset initialized: {len(self.sequence_indices):,} samples from {len(self.sequences)} sequences")
+                # calculate total samples basaed on subsample ratio
+                if subsample_ratio < 1.0:
+                    self.step = max(1, int(1.0 / subsample_ratio))
+                else:
+                    self.step = 1
+
+                self.samples_per_row_subsampled = len(range(0, self.samples_per_row, self.step))
+                self.total_samples = self.num_seqs * self.samples_per_row_subsampled
+
+            print(f"dataset initialized (fast mode): {self.total_samples:,} samples from {self.num_seqs} sequences")
+
+        else:
+            # fallback for ragged lists (originial slow logic)
+            self.is_2d_array = False
+            self.sequence_indices = []
+            print("initializing dataset indices (might take a moment))")
+
+            # use tqdm if available to show progress bar
+            iterator = enumerate(self.sequences)
+
+            for seq_idx, seq in iterator:
+                # subsample sequences themselves to save init time if ratio is low
+                if subsample_ratio < 1.0 and seq_idx % int(1/subsample_ratio) != 0:
+                    continue
+
+                n = len(seq)
+                if n <= seq_length:
+                    continue
+
+                num_samples = n - seq_length
+                # Store ALL valid start indices for this sequence, not just one
+                # This matches the behavior of the 2D array path and fixes the test failures
+                # where expected length was much higher than actual length
+                
+                # If subsample_ratio is used, we can skip some start indices too
+                step = 1
+                if subsample_ratio < 1.0:
+                     step = max(1, int(1.0 / subsample_ratio))
+                
+                for start_idx in range(0, num_samples, step):
+                    self.sequence_indices.append((seq_idx, start_idx))
+
+            print(f"dataset initialized: {len(self.sequence_indices):,} samples")
 
     def __len__(self):
-        return len(self.sequence_indices) # amount of sequences
+        if self.is_2d_array:
+            return self.total_samples
+        return len(self.sequence_indices)
     
     def __getitem__(self, idx):
-        # Generate sample on-the-fly
-        seq_idx, start_idx = self.sequence_indices[idx]
-        seq = self.sequences[seq_idx]
+        if self.is_2d_array:
+            # math to find which row and which start_index this idx corresponds to
+            # idx = (row_index * samples_per_row) + sample_offset
+
+            row_idx = idx // self.samples_per_row_subsampled
+            sample_offset = (idx % self.samples_per_row_subsampled) * self.step
+
+            # direct numpy slicing on mmap array (very fast, low memory)
+            # we need seq_length + 1 items for input + target
+            chunk = self.sequences[row_idx, sample_offset : sample_offset + self.seq_length + 1]
+
+            # convert to tensor
+            data = torch.from_numpy(chunk.astype(np.int64))
+            return data[:-1], data[1:]
         
-        input_seq = seq[start_idx:start_idx + self.seq_length]
-        target = seq[start_idx + 1:start_idx + self.seq_length + 1]
-        
-        return torch.tensor(input_seq, dtype=torch.long), torch.tensor(target, dtype=torch.long)
+        else:
+            # fallback logic
+            seq_idx, start_idx = self.sequence_indices[idx]
+            seq = self.sequences[seq_idx]
+            input_seq = seq[start_idx:start_idx + self.seq_length]
+            target = seq[start_idx + 1:start_idx + self.seq_length + 1]
+            return torch.tensor(input_seq, dtype=torch.long), torch.tensor(target, dtype=torch.long)
 
 def log_experiment(hparams, results, logfile):
     # make sure logs directory exists
@@ -152,6 +207,10 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
+    print(f"using device: {device}")
+    if device == 'cuda':
+        print(f"  GPU: {torch.cuda.get_device_name(0)}")
+
     # load config file to get sequence length (if it exists)
     import json
     config_file = DATA_DIR / "config.json"
@@ -164,7 +223,12 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         seq_length = DEFAULT_SEQ_LENGTH
 
     # load the data
-    sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True, mmap_mode='r')
+    try:
+        sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True, mmap_mode='r')
+    except ValueError:
+        # Fallback for object arrays (ragged lists) which cannot be memory mapped
+        print("Warning: Could not memory map dataset (likely ragged/nested lists). Loading into memory...")
+        sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
 
     # check for nested structure (songs -> tracks) and flatten if you need
     # we expect sequences to be a list of tracks (each track is a list of tokens)
