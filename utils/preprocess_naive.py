@@ -53,6 +53,10 @@ def midi_to_notes(midi_file):
     """
     Parses a MIDI file and returns a list of notes as strings.
     Uses symusic for faster parsing.
+    
+    Note: Unlike the previous music21 implementation, this does not group simultaneous notes
+    into 'Chord' objects. All notes are flattened into a sequence sorted by time.
+    This results in a smaller vocabulary size (just pitches) compared to pitches + chord combinations.
     """
     notes = []
     try:

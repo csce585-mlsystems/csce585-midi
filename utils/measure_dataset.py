@@ -3,7 +3,9 @@ import numpy as np
 from pathlib import Path
 import pretty_midi
 from collections import defaultdict # allows you to set default values for each key
-import pickle # for saving/loading data
+import pickle
+
+from tqdm import tqdm # for saving/loading data
 
 """ I keep getting runtime warnings. I asked Claude if they matter:
     responded with: 
@@ -126,7 +128,7 @@ def build_measure_dataset(midi_folder, out_dir="data/measures", beats_per_bar=4,
     files = list(midi_folder.rglob("*.mid")) + list(midi_folder.rglob("*.midi"))
 
     # for each midi file
-    for f in files:
+    for f in tqdm(files):
         # get the measures (list of sets of pitches)
         measures = midi_to_measure_pitches(f, beats_per_bar=beats_per_bar, tempo_bpm_default=tempo_bpm)
         if len(measures) < 2 or measures is None:
