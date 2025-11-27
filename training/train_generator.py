@@ -164,7 +164,7 @@ def train(model_type="lstm", dataset="naive", embed_size=128, hidden_size=256, n
         seq_length = DEFAULT_SEQ_LENGTH
 
     # load the data
-    sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
+    sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True, mmap_mode='r')
 
     # check for nested structure (songs -> tracks) and flatten if you need
     # we expect sequences to be a list of tracks (each track is a list of tokens)
