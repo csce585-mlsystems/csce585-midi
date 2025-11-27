@@ -13,8 +13,31 @@ from utils.preprocess_miditok import preprocess_miditok, SEQ_LENGTH
 
 # dataset class
 NAIVE_DIR = Path("data/naive")
+if not (NAIVE_DIR / "sequences.npy").exists():
+    # try to find another naive dir
+    naive_dirs = list(Path("data").glob("*_naive"))
+    for d in naive_dirs:
+        if (d / "sequences.npy").exists():
+            NAIVE_DIR = d
+            break
+
 MIDITOK_DIR = Path("data/miditok")
+if not (MIDITOK_DIR / "sequences.npy").exists():
+    # try to find another miditok dir
+    miditok_dirs = list(Path("data").glob("*_miditok"))
+    for d in miditok_dirs:
+        if (d / "sequences.npy").exists():
+            MIDITOK_DIR = d
+            break
+
 MEASURES_DIR = Path("data/measures")
+if not (MEASURES_DIR / "measure_sequences.npy").exists():
+    # try to find another measures dir
+    measures_dirs = list(Path("data").glob("*_measure_dataset"))
+    for d in measures_dirs:
+        if (d / "measure_sequences.npy").exists():
+            MEASURES_DIR = d
+            break
 
 # NAIVE PREPROCESSING TESTS
 

@@ -215,6 +215,7 @@ def generate(
     k=5, # for top-k sampling
     p=0.9, # for nucleus sampling
     model_path=None,
+    data_dir=None,
     model_type="lstm", # specify which architecture was used
     discriminator_path=None,
     discriminator_type=None,
@@ -236,12 +237,13 @@ def generate(
 ):
     
     # infer dataset (miditok or naive) from the model file path
+    model_path_str = model_path
     model_path = Path(model_path)
-    if "miditok_augmented" in model_path.parts:
+    if "miditok_augmented" in model_path_str:
         dataset = "miditok_augmented"
-    elif "miditok" in model_path.parts:
+    elif "miditok" in model_path_str:
         dataset = "miditok"
-    elif "naive" in model_path.parts:
+    elif "naive" in model_path_str:
         dataset = "naive"
     else:
         raise ValueError("Cannot infer dataset from model path. Please ensure the path contains either 'miditok' or 'naive'.")
@@ -250,10 +252,17 @@ def generate(
     if model_path is None:
         raise ValueError("Please provide a valid model checkpoint path using --model_path")
     
-    # you know which directories to look in by the model's filepath
-    DATA_DIR = Path(f"data/{dataset}")
-    LOG_FILE = Path(f"logs/generators/{dataset}/midi/output_midis.csv")
-    OUTPUT_DIR = Path(f"outputs/generators/{dataset}/midi")
+    # make sure data dir exists
+    if data_dir is not None:
+        DATA_DIR = Path(data_dir)
+        dataset_name = data_dir[data_dir.find("/"):] if "/" in data_dir else f"/{data_dir}"
+    else:
+        DATA_DIR = Path(f"data/{dataset}")
+        dataset_name = f"/{dataset}"
+
+    # store all in the same csv for each dataset (naive or miditok)
+    LOG_FILE = Path(f"logs/generators/{dataset_name}/midi/output_midis.csv")
+    OUTPUT_DIR = Path(f"outputs/generators/{dataset_name}/midi")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True) # ensure output dir exists
     
     # load the vocab
@@ -521,6 +530,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_type", type=str, default="lstm",
                         choices=["lstm", "gru", "transformer"],
                         help="Type of generator architecture")
+    parser.add_argument("--data_dir", type=str, default=None,
+                        help="Path to where your preprocessesed data is stored.")
     parser.add_argument("--strategy", type=str, default="greedy",
                         choices=["greedy", "random", "top_k", "top_p"],
                         help="Sampling strategy")

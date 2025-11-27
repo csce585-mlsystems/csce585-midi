@@ -2,7 +2,7 @@ import argparse
 import os
 from pathlib import Path
 import numpy as np
-from music21 import converter, instrument, note, chord
+from symusic import Score
 import pickle
 import signal
 from contextlib import contextmanager
@@ -38,29 +38,38 @@ the processed sequences as a numpy array in data/sequences.npy. Each sequence is
 representing notes/chords. The mapping from notes/chords to integers is also built and can be saved if needed."""
 
 
-"""This preprocessing uses the music21 library to parse MIDI files and extract notes and chords.
+"""This preprocessing uses the symusic library to parse MIDI files and extract notes.
 calling it naive because it does not do any advanced filtering or cleaning of the data. other preprocessing
 file uses miditok which is more robust. having these separate allows experimentation with different preprocessing methods."""
 
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+def pitch_to_string(pitch_int):
+    octave = (pitch_int // 12) - 1
+    note_name = PITCH_NAMES[pitch_int % 12]
+    return f"{note_name}{octave}"
+
 def midi_to_notes(midi_file):
     """
-    Parses a MIDI file and returns a list of notes/chords as strings.
+    Parses a MIDI file and returns a list of notes as strings.
+    Uses symusic for faster parsing.
     """
     notes = []
     try:
-        midi = converter.parse(midi_file)
-        parts = instrument.partitionByInstrument(midi)
-        if parts:
-            notes_to_parse = parts.parts[0].recurse()
-        else:
-            notes_to_parse = midi.flat.notes
-
-        # represent chords and notes differently
-        for element in notes_to_parse:
-            if isinstance(element, note.Note):
-                notes.append(str(element.pitch))
-            elif isinstance(element, chord.Chord):
-                notes.append('.'.join(str(n) for n in element.normalOrder))
+        score = Score(midi_file)
+        
+        # Try to get the first track with notes
+        target_track = None
+        if len(score.tracks) > 0:
+            target_track = score.tracks[0]
+        
+        if target_track:
+            # Sort notes by time, then pitch
+            sorted_notes = sorted(target_track.notes, key=lambda x: (x.start, x.pitch))
+            
+            for n in sorted_notes:
+                notes.append(pitch_to_string(n.pitch))
+                
     except Exception as e:
         print(f"Failed to parse {midi_file}: {e}")
         return []
