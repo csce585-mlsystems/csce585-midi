@@ -49,6 +49,9 @@ logs/training_session_*/
 # outputs/midi/*.mid
 # outputs/*/training_loss/*.png
 
+# Documentation - keep locally but not in git
+docs/*.md
+
 # Data
 data/*
 !data/.gitkeep
@@ -71,12 +74,6 @@ data/*
 *.tmp
 # Allowing MIDI files for submission
 # data/nottingham-dataset-master/MIDI/*.mid
-
-# docs
-/docs/GENERATOR_FACTORY.md
-/docs/IMPLEMENTATION_SUMMARY.md
-/docs/P1_PRELIMINARY_RESULTS.md
-/docs/PROPOSAL.md
 
 # requirements.txt is legacy
 requirements.txt

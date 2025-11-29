@@ -13,6 +13,7 @@ from utils.seed_selection import get_seed_by_filename
 from datetime import datetime
 
 from utils.seed_selection import find_seed_by_characteristics
+from utils.midi_to_seed import midi_to_seed
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -234,6 +235,7 @@ def generate(
     nhead=None,
     dim_feedforward=None,
     seed_file=None,
+    seed_midi_file=None,
 ):
     
     # infer dataset (miditok or naive) from the model file path
@@ -282,8 +284,18 @@ def generate(
     # load data and seed
     sequences = np.load(DATA_DIR / "sequences.npy", allow_pickle=True)
 
-    # if user wants a specific file to be used as the seed
-    if seed_file is not None:
+    # Priority 1: if user provides a MIDI file to convert to seed
+    if seed_midi_file is not None:
+        print(f"\nConverting MIDI file to seed: {seed_midi_file}")
+        seed = midi_to_seed(seed_midi_file, DATA_DIR, seq_length=seq_length)
+        if seed is None:
+            print("\nError: Could not convert MIDI file to seed.")
+            print("Make sure the MIDI file exists and is valid.")
+            sys.exit(1)
+        print(f"Successfully converted MIDI to seed (length: {len(seed)})")
+    
+    # Priority 2: if user wants a specific file from the dataset to be used as the seed
+    elif seed_file is not None:
         # Extract just the filename if a full path was provided
         seed_filename = Path(seed_file).name
         print(f"Using seed file: {seed_filename}")
@@ -292,12 +304,12 @@ def generate(
             print("\nError: Could not load seed from file.")
             print(f"Note: Use just the filename (e.g., 'reelsa-c33.mid'), not the full path.")
             sys.exit(1)
-    # get a random seed
+    # Priority 3: get a random seed
     elif seed_style == "random":
         idx = np.random.randint(0, len(sequences))
         seed = sequences[idx]
 
-    # smart seed selection
+    # Priority 4: smart seed selection
     else:
         seed = find_seed_by_characteristics(
             sequences=sequences, int_to_note=int_to_note,
@@ -569,5 +581,7 @@ if __name__ == "__main__":
                         help="Length of seed\nshort: < 50 notes\n medium: 50-100 notes\nlong: 100+ notes")
     parser.add_argument("--seed_file", type=str, default=None,
                         help="Filename of the MIDI file to use as seed (e.g., 'reelsa-c33.mid'). File must exist in the preprocessed dataset.")
+    parser.add_argument("--seed_midi_file", type=str, default=None,
+                        help="Path to a MIDI file to convert to a seed sequence (can be any MIDI file, not just from the dataset)")
     args = parser.parse_args()
     generate(**vars(args))
