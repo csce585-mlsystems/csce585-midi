@@ -113,8 +113,8 @@ The customizable features of the project will allow easy experimentation with va
 ### 1. Clone the Repository
 
 ```bash
-git  clone  https://github.com/csce585-mlsystems/csce585-midi.git
-cd  csce585-midi
+git clone https://github.com/csce585-mlsystems/csce585-midi.git
+cd csce585-midi
 ```
 
 ### 2. Download the Dataset
@@ -125,9 +125,9 @@ Please refer to both [Preprocessing Wiki Page](https://github.com/csce585-mlsyst
 ```bash
 
 # Option 1: Clone the dataset repository
-cd  data/
-git  clone  https://github.com/jukedeck/nottingham-dataset.git  nottingham-dataset-master
-cd  ..
+cd data/
+git clone https://github.com/jukedeck/nottingham-dataset.git nottingham-dataset-master
+cd ..
 ```
 ```
 # Option 2: Download and extract manually
@@ -224,11 +224,11 @@ This creates:
 ### 4. Verify Setup
 ```bash
 # Quick test
-python  -c  "import torch; print('PyTorch:', torch.__version__)"
-python  -c  "import miditok; import pretty_midi; print('Dependencies OK')"
+python -c "import torch; print('PyTorch:', torch.__version__)"
+python -c "import miditok; import pretty_midi; print('Dependencies OK')"
 
 # Verify preprocessed data exists
-ls  data/naive/sequences.npy  data/miditok/sequences.npy  data/measures/measure_sequences.npy
+ls data/naive/sequences.npy data/miditok/sequences.npy data/measures/measure_sequences.npy
 ```  
 
 ### Hardware and Environment
@@ -278,14 +278,15 @@ ls  data/naive/sequences.npy  data/miditok/sequences.npy  data/measures/measure_
   - seed_control.py         # seed control for reliability across experiments
   - seed_selection.py       # finds a seed from a dataset by looking for sequences matching criteria given by the user
   - midi_to_seed.py         # takes any midi file and turns into tokens from specified preprocessed data
-- .coverage        # used for coverage in pytest
-- .coveragec       # same as above
-- .gitignore       # files to ignore from version control
-- .python-version  # specifies that this project uses python 3.11.10
-- evaluate.py      # evaluates a midi file by metrics like pitch range, polyphony, etc.
-- generate.py      # script for using a model to generate a MIDI file
-- pyproject.toml   # used for specifying dependencies for uv lock
-- uv.lock          # used for installing dependencies
+- .coverage                 # used for coverage in pytest
+- .coveragec                # same as above
+- .gitignore                # files to ignore from version control
+- .python-version           # specifies that this project uses python 3.11.10
+- evaluate.py               # evaluates a midi file by metrics like pitch range, polyphony, etc.
+- generate.py               # script for using a model to generate a MIDI file
+- pyproject.toml            # used for specifying dependencies for uv lock
+- uv.lock                   # used for installing dependencies
+- SetupNotebook.ipynb       # colab notebook that follows the steps listed in this README
 ```
 ---
 
