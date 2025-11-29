@@ -20,8 +20,13 @@ This project uses **Python 3.11.10**. Python 3.13+ is not supported due to NumPy
 The project includes a `.python-version` file that automatically selects Python 3.11 for tools like `uv` and `pyenv`.
 
 ## Project Summary/Abstract
-This project is a customizable MIDI training/generation framework. Any dataset of MIDI files can be placed in the project. Datasets can be preprocessed using 3 different tokenization types, described on this [wiki page](https://github.com/csce585-mlsystems/csce585-midi/wiki/Preprocessing). Users can train their own custom [generator and discriminator models](https://github.com/csce585-mlsystems/csce585-midi/wiki/Models) with many different customizable options. Training and generation data are logged, allowing easy experimentation. Users may additionally use any MIDI file they wish as a seed during generation, allowing the model to build off of any existing song. The experimentation portion of this project focuses on the quantitative differences in different measures of generated MIDI files based on differently trained models as well as with different generation methods.
-  
+This project is a customizable and modular MIDI training/generation framework. Any dataset of MIDI files can be placed in the project. Datasets can be preprocessed using 3 different tokenization types, described on this [wiki page](https://github.com/csce585-mlsystems/csce585-midi/wiki/Preprocessing). Users can train their own custom [generator and discriminator models](https://github.com/csce585-mlsystems/csce585-midi/wiki/Models) with many different customizable options. Training and generation data are logged, allowing easy experimentation. Users may additionally use any MIDI file they wish as a seed during generation, allowing the model to build off of any existing song. The experimentation portion of this project focuses on the quantitative differences in different measures of generated MIDI files based on differently trained models as well as with different generation methods.
+
+**Some Experiment Examples**
+- Comparing the MIDI files generated on naive tokens vs miditok tokens
+- Comparing model architectures to LSTM as a baseline
+- Effects of sampling strategies on musicality
+- Comparing the MIDI files created with and without a discriminator model
 
 ## Problem Description
 
