@@ -105,9 +105,66 @@ The customizable features of the project will allow easy experimentation with va
 
 [Colin Raffel. "Learning-Based Methods for Comparing Sequences, with Applications to Audio-to-MIDI Alignment and Matching". _PhD Thesis_, 2016](https://colinraffel.com/publications/thesis.pdf)
 
----
+---  
 
-  
+### Hardware and Environment
+
+-  **Hardware**: MacBook Air M1 (8GB RAM) and A100 GPU via Google Colab
+
+-  **OS**: macOS Sequoia
+
+-  **Acceleration**: MPS (Metal Performance Shaders) / CUDA / CPU
+
+-  **Python**: 3.11.10
+
+-  **PyTorch**: 2.9.0+ on my Macbook, but please view this [wiki page](https://github.com/csce585-mlsystems/csce585-midi/wiki/Dependencies) if you'd liike to use Cuda.
+
+## Project Structure
+
+**Please refer to the wiki if you have any questions about the project**
+```
+- data/
+  - holds your dataset(s)
+  - holds output from preprocessing scripts ex. ```data/nottingham_naive```
+- docs/
+  - holds P0, P1, P2 for class presentations
+- models/
+  - models/generators/
+    - generator_factory.py     # allows you to create a generator of specified type
+    - generator_gru.py         # definition of GRUGenerator class
+    - generator_lstm.py        # definition of LSTMGenerator class
+    - generator_transformer.py # definition of TransformerGenerator class
+  - models/discriminators/     # discriminator dir follows same pattern as above
+    - discriminator_factory.py
+    - discriminator_lstm.py
+    - discriminator_mlp.py
+    - discriminator_transformer.py
+- tests/ # tests for pytest
+- training/
+  - train_discriminator.py  # script for training discriminator models
+  - train_generator.py      # script for training generator models
+- utils/
+  - augment_dataset.py      # script for preprocessing a dataset with augmentation (transposition)
+  - download_small_aria.sh  # script for downloading a dataset with around 30,000 MIDI files
+  - measure_dataset.py      # script for preprocessing data for discriminators
+  - preprocess_all.sh       # script to run naive, miditok, and measure preprocessing
+  - preprocess_miditok.py   # script to preprocess a dataset with miditok tokens
+  - preprocess_naive.py     # script to preprocess a dataset with naive tokens
+  - sampling.py             # defines different sampling methods (top-p, top-k, random, greedy)
+  - seed_control.py         # seed control for reliability across experiments
+  - seed_selection.py       # finds a seed from a dataset by looking for sequences matching criteria given by the user
+  - midi_to_seed.py         # takes any midi file and turns into tokens from specified preprocessed data
+- .coverage                 # used for coverage in pytest
+- .coveragec                # same as above
+- .gitignore                # files to ignore from version control
+- .python-version           # specifies that this project uses python 3.11.10
+- evaluate.py               # evaluates a midi file by metrics like pitch range, polyphony, etc.
+- generate.py               # script for using a model to generate a MIDI file
+- pyproject.toml            # used for specifying dependencies for uv lock
+- uv.lock                   # used for installing dependencies
+- SetupNotebook.ipynb       # colab notebook that follows the steps listed in this README
+```
+---
 
 ## Setup Instructions
 ### 1. Clone the Repository
@@ -229,66 +286,7 @@ python -c "import miditok; import pretty_midi; print('Dependencies OK')"
 
 # Verify preprocessed data exists
 ls data/naive/sequences.npy data/miditok/sequences.npy data/measures/measure_sequences.npy
-```  
-
-### Hardware and Environment
-
--  **Hardware**: MacBook Air M1 (8GB RAM) and A100 GPU via Google Colab
-
--  **OS**: macOS Sequoia
-
--  **Acceleration**: MPS (Metal Performance Shaders) / CUDA / CPU
-
--  **Python**: 3.11.10
-
--  **PyTorch**: 2.9.0+ on my Macbook, but please view this [wiki page](https://github.com/csce585-mlsystems/csce585-midi/wiki/Dependencies) if you'd liike to use Cuda.
-
-## Project Structure
-
-**Please refer to the wiki if you have any questions about the project**
 ```
-- data/
-  - holds your dataset(s)
-  - holds output from preprocessing scripts ex. ```data/nottingham_naive```
-- docs/
-  - holds P0, P1, P2 for class presentations
-- models/
-  - models/generators/
-    - generator_factory.py     # allows you to create a generator of specified type
-    - generator_gru.py         # definition of GRUGenerator class
-    - generator_lstm.py        # definition of LSTMGenerator class
-    - generator_transformer.py # definition of TransformerGenerator class
-  - models/discriminators/     # discriminator dir follows same pattern as above
-    - discriminator_factory.py
-    - discriminator_lstm.py
-    - discriminator_mlp.py
-    - discriminator_transformer.py
-- tests/ # tests for pytest
-- training/
-  - train_discriminator.py  # script for training discriminator models
-  - train_generator.py      # script for training generator models
-- utils/
-  - augment_dataset.py      # script for preprocessing a dataset with augmentation (transposition)
-  - download_small_aria.sh  # script for downloading a dataset with around 30,000 MIDI files
-  - measure_dataset.py      # script for preprocessing data for discriminators
-  - preprocess_all.sh       # script to run naive, miditok, and measure preprocessing
-  - preprocess_miditok.py   # script to preprocess a dataset with miditok tokens
-  - preprocess_naive.py     # script to preprocess a dataset with naive tokens
-  - sampling.py             # defines different sampling methods (top-p, top-k, random, greedy)
-  - seed_control.py         # seed control for reliability across experiments
-  - seed_selection.py       # finds a seed from a dataset by looking for sequences matching criteria given by the user
-  - midi_to_seed.py         # takes any midi file and turns into tokens from specified preprocessed data
-- .coverage                 # used for coverage in pytest
-- .coveragec                # same as above
-- .gitignore                # files to ignore from version control
-- .python-version           # specifies that this project uses python 3.11.10
-- evaluate.py               # evaluates a midi file by metrics like pitch range, polyphony, etc.
-- generate.py               # script for using a model to generate a MIDI file
-- pyproject.toml            # used for specifying dependencies for uv lock
-- uv.lock                   # used for installing dependencies
-- SetupNotebook.ipynb       # colab notebook that follows the steps listed in this README
-```
----
 
 ## Quick Start
 
