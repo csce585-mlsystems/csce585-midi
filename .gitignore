@@ -63,6 +63,8 @@ data/*
 *.pth
 *.pt
 
+# presentation
+presentation/
 
 
 # Jupyter
