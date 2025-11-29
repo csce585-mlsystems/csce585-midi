@@ -23,10 +23,10 @@ plt.rcParams['figure.figsize'] = (12, 6)
 class LogAnalyzer:
     def __init__(self, logs_dir="logs"):
         self.logs_dir = Path(logs_dir)
-        self.generator_logs = {}
-        self.discriminator_logs = {}
-        self.generation_logs = {}
-        self.evaluation_logs = {}
+        self.generator_logs = pd.DataFrame()
+        self.discriminator_logs = pd.DataFrame()
+        self.generation_logs = pd.DataFrame()
+        self.evaluation_logs = pd.DataFrame()
         
     def load_all_logs(self):
         """Load all log files into dataframes."""
@@ -44,7 +44,7 @@ class LogAnalyzer:
                 except Exception as e:
                     print(f"Warning: Could not load {file}: {e}")
             self.generator_logs = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-            print(f"  ✓ Loaded {len(self.generator_logs)} generator training runs")
+            print(f"Loaded {len(self.generator_logs)} generator training runs")
         
         # Load generation output logs
         generation_files = list(self.logs_dir.glob("generators/*/midi/output_midis.csv"))
@@ -58,7 +58,7 @@ class LogAnalyzer:
                 except Exception as e:
                     print(f"Warning: Could not load {file}: {e}")
             self.generation_logs = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-            print(f"  ✓ Loaded {len(self.generation_logs)} generation runs")
+            print(f"Loaded {len(self.generation_logs)} generation runs")
         
         # Load evaluation logs
         evaluation_files = list(self.logs_dir.glob("generators/*/midi/evaluation_log.csv"))
@@ -72,13 +72,13 @@ class LogAnalyzer:
                 except Exception as e:
                     print(f"Warning: Could not load {file}: {e}")
             self.evaluation_logs = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-            print(f"  ✓ Loaded {len(self.evaluation_logs)} evaluations")
+            print(f"Loaded {len(self.evaluation_logs)} evaluations")
         
         # Load discriminator logs
         disc_file = self.logs_dir / "discriminators" / "train_summary.csv"
         if disc_file.exists():
             self.discriminator_logs = pd.read_csv(disc_file)
-            print(f"  ✓ Loaded {len(self.discriminator_logs)} discriminator training epochs")
+            print(f"Loaded {len(self.discriminator_logs)} discriminator training epochs")
         
         print("Loading complete!\n")
     
@@ -258,11 +258,11 @@ class LogAnalyzer:
         if not self.generator_logs.empty:
             df = self.generator_logs
             best_model = df.loc[df['min_loss'].idxmin()]
-            insights.append("📊 TRAINING FINDINGS:")
-            insights.append(f"  • Best performing model: {best_model['model_type'].upper()}")
-            insights.append(f"  • Achieved loss: {best_model['min_loss']:.4f}")
-            insights.append(f"  • Dataset: {best_model['dataset_name']}")
-            insights.append(f"  • Total training time: {df['train_time_sec'].sum()/60:.1f} minutes")
+            insights.append("TRAINING FINDINGS:")
+            insights.append(f"  Best performing model: {best_model['model_type'].upper()}")
+            insights.append(f"  Achieved loss: {best_model['min_loss']:.4f}")
+            insights.append(f"  Dataset: {best_model['dataset_name']}")
+            insights.append(f"  Total training time: {df['train_time_sec'].sum()/60:.1f} minutes")
             
             # Model comparison
             lstm_avg = df[df['model_type'] == 'lstm']['min_loss'].mean()
@@ -270,13 +270,13 @@ class LogAnalyzer:
             if not np.isnan(lstm_avg) and not np.isnan(transformer_avg):
                 better = "LSTM" if lstm_avg < transformer_avg else "Transformer"
                 diff = abs(lstm_avg - transformer_avg)
-                insights.append(f"  • {better} performed {diff:.4f} better on average")
+                insights.append(f"  {better} performed {diff:.4f} better on average")
             insights.append("")
         
         # Generation insights
         if not self.generation_logs.empty and not self.evaluation_logs.empty:
             merged = pd.merge(self.generation_logs, self.evaluation_logs, on='output_file', how='inner')
-            insights.append("🎵 GENERATION FINDINGS:")
+            insights.append("GENERATION FINDINGS:")
             insights.append(f"  • Total generations: {len(merged)}")
             insights.append(f"  • Avg pitch range: {merged['pitch_range'].mean():.1f} semitones")
             insights.append(f"  • Avg note density: {merged['note_density'].mean():.2f} notes/sec")
@@ -284,26 +284,26 @@ class LogAnalyzer:
             # Strategy comparison
             if 'strategy' in merged.columns and len(merged) > 1:
                 best_strategy = merged.groupby('strategy')['pitch_range'].mean().idxmax()
-                insights.append(f"  • Most diverse strategy: {best_strategy}")
+                insights.append(f"  Most diverse strategy: {best_strategy}")
             insights.append("")
         
         # Discriminator insights
         if not self.discriminator_logs.empty:
             df = self.discriminator_logs
             best = df.loc[df['micro_f1'].idxmax()]
-            insights.append("🎯 DISCRIMINATOR FINDINGS:")
-            insights.append(f"  • Best F1 score: {best['micro_f1']:.4f}")
-            insights.append(f"  • Best model: {best['model_type'].upper()}")
-            insights.append(f"  • Training epochs: {df['epoch'].max()}")
+            insights.append("DISCRIMINATOR FINDINGS:")
+            insights.append(f"  Best F1 score: {best['micro_f1']:.4f}")
+            insights.append(f"  Best model: {best['model_type'].upper()}")
+            insights.append(f"  Training epochs: {df['epoch'].max()}")
             insights.append("")
         
-        insights.append("💡 RECOMMENDATIONS:")
+        insights.append("RECOMMENDATIONS:")
         if not self.generator_logs.empty:
             best_type = self.generator_logs.groupby('model_type')['min_loss'].mean().idxmin()
-            insights.append(f"  • Use {best_type.upper()} architecture for best results")
+            insights.append(f"  Use {best_type.upper()} architecture for best results")
         if not self.generation_logs.empty:
-            insights.append("  • Experiment with temperature 1.5-2.0 for diversity")
-            insights.append("  • Use nucleus sampling (top_p) for musical coherence")
+            insights.append("  Experiment with temperature 1.5-2.0 for diversity")
+            insights.append("  Use nucleus sampling (top_p) for musical coherence")
         
         insights.append("")
         return "\n".join(insights)
@@ -330,7 +330,7 @@ class LogAnalyzer:
             plt.grid(alpha=0.3)
             plt.tight_layout()
             plt.savefig(output_dir / 'training_loss_comparison.png', dpi=300)
-            print(f"  ✓ Saved training_loss_comparison.png")
+            print(f"Saved training_loss_comparison.png")
             plt.close()
         
         # 2. Model size vs performance
@@ -349,7 +349,7 @@ class LogAnalyzer:
             plt.xscale('log')
             plt.tight_layout()
             plt.savefig(output_dir / 'model_size_vs_performance.png', dpi=300)
-            print(f"  ✓ Saved model_size_vs_performance.png")
+            print(f"Saved model_size_vs_performance.png")
             plt.close()
         
         # 3. Generation quality metrics
@@ -382,7 +382,7 @@ class LogAnalyzer:
             
             plt.tight_layout()
             plt.savefig(output_dir / 'generation_quality_metrics.png', dpi=300)
-            print(f"  ✓ Saved generation_quality_metrics.png")
+            print(f"Saved generation_quality_metrics.png")
             plt.close()
         
         # 4. Discriminator learning curves
@@ -415,7 +415,7 @@ class LogAnalyzer:
             plt.grid(axis='x', alpha=0.3)
             plt.tight_layout()
             plt.savefig(output_dir / 'dataset_comparison.png', dpi=300)
-            print(f"  ✓ Saved dataset_comparison.png")
+            print(f"Saved dataset_comparison.png")
             plt.close()
         
         print(f"\nAll visualizations saved to {output_dir}/")
@@ -458,7 +458,7 @@ class LogAnalyzer:
                 'train_loss': 'min'
             }).round(4)
             summary.to_csv(output_dir / 'discriminator_summary.csv')
-            print(f"  ✓ Saved discriminator_summary.csv")
+            print(f"Saved discriminator_summary.csv")
         
         print(f"\nAll tables saved to {output_dir}/")
     
@@ -483,39 +483,46 @@ class LogAnalyzer:
         with open(output_file, 'w') as f:
             f.write('\n'.join(report))
         
-        print(f"\n✅ Full report saved to {output_file}")
+        print(f"\nFull report saved to {output_file}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze training and generation logs")
-    parser.add_argument("--output", type=str, default="presentation/analysis_report.md",
-                        help="Output file for markdown report")
+    parser.add_argument("output_dir", nargs="?", default="presentation/analysis",
+                        help="Directory to store all analysis outputs")
     parser.add_argument("--plot", action="store_true",
                         help="Generate visualization plots")
     parser.add_argument("--tables", action="store_true",
                         help="Export summary tables")
-    parser.add_argument("--all", action="store_true",
-                        help="Generate report, plots, and tables")
+    parser.add_argument("--report", action="store_true",
+                        help="Generate markdown report")
     
     args = parser.parse_args()
+    
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # If no specific action flags are set, do everything
+    do_all = not (args.plot or args.tables or args.report)
     
     # Initialize analyzer
     analyzer = LogAnalyzer()
     analyzer.load_all_logs()
     
     # Generate outputs based on arguments
-    if args.all or not (args.plot or args.tables):
-        analyzer.generate_full_report(args.output)
+    if do_all or args.report:
+        analyzer.generate_full_report(output_dir / "analysis_report.md")
     
-    if args.plot or args.all:
-        analyzer.create_visualizations()
+    if do_all or args.plot:
+        analyzer.create_visualizations(output_dir / "figures")
     
-    if args.tables or args.all:
-        analyzer.export_summary_tables()
+    if do_all or args.tables:
+        analyzer.export_summary_tables(output_dir / "tables")
     
     print("\n" + "="*70)
-    print("ANALYSIS COMPLETE! 🎉")
+    print("ANALYSIS COMPLETE!")
     print("="*70)
+    print(f"Outputs saved to: {output_dir}")
     print("\nNext steps for your presentation:")
     print("  1. Review the markdown report for key findings")
     print("  2. Use the generated figures in your slides")

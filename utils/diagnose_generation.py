@@ -12,7 +12,8 @@ import argparse
 
 def analyze_generation_diversity(model_path, data_dir, num_samples=5, generate_length=200):
     """
-    Generate multiple samples and analyze their diversity.
+    Generate multiple samples and analyze their diversity given a model's path and its data directory.
+    This is a way to test how a model is generating after it's been trained
     """
     print(f"\n{'='*60}")
     print("GENERATION DIVERSITY ANALYSIS")
@@ -120,19 +121,19 @@ def analyze_sequences(sequences, vocab_size):
     
     # Repetition warning
     if avg_repetitions > 20:
-        print(f"  ⚠️  HIGH REPETITION WARNING - Try higher temperature or different sampling!")
+        print(f"HIGH REPETITION WARNING - Try higher temperature or different sampling!")
     elif avg_repetitions > 10:
-        print(f"  ⚠️  Moderate repetition - Consider adjusting parameters")
+        print(f"Moderate repetition - Consider adjusting parameters")
     else:
-        print(f"  ✓ Good diversity")
+        print(f"Good diversity")
     
     # Vocabulary warning
     if vocab_usage_pct < 10:
-        print(f"  ⚠️  VERY LOW VOCABULARY USAGE - Model is stuck in a rut!")
+        print(f"VERY LOW VOCABULARY USAGE - Model is repeating the same notes :(")
     elif vocab_usage_pct < 30:
-        print(f"  ⚠️  Low vocabulary usage - Try more diverse sampling")
+        print(f"Low vocabulary usage - Try more diverse sampling")
     else:
-        print(f"  ✓ Good vocabulary coverage")
+        print(f"Good vocabulary coverage")
 
 
 if __name__ == "__main__":

@@ -25,11 +25,15 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     gen_dfs = []
     eval_dfs = []
     
+    # set dataset to the one used by the model the generated each resepective MIDI
+    # this essentially labels each MIDI file with the its associated dataset
     for file in generation_files:
         df = pd.read_csv(file, on_bad_lines='skip')
         df['dataset'] = file.parent.parent.name
         gen_dfs.append(df)
     
+    # do the same as above but with the evaluations
+    # recall that evaluations are quantitative measures of MIDI files (polyphony, pitch range, etc.)
     for file in evaluation_files:
         df = pd.read_csv(file, on_bad_lines='skip')
         df['dataset'] = file.parent.parent.name
@@ -38,7 +42,7 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     gen_df = pd.concat(gen_dfs, ignore_index=True)
     eval_df = pd.concat(eval_dfs, ignore_index=True)
     
-    # Merge
+    # Merge all into one cohesive table
     merged = pd.merge(gen_df, eval_df, on='output_file', suffixes=('_gen', '_eval'))
     
     if merged.empty:
@@ -51,9 +55,12 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     # Higher pitch range = more interesting
     # Moderate note density = not too sparse or dense
     # Longer duration = more substantial piece
-    
+
+    # divide each pitch range by the highest pitch range
     merged['pitch_range_score'] = merged['pitch_range'] / merged['pitch_range'].max()
+    # compare each note density to the mean note density
     merged['density_score'] = 1 - abs(merged['note_density'] - merged['note_density'].median()) / merged['note_density'].std()
+    # compare each duration to max duration
     merged['duration_score'] = merged['duration'] / merged['duration'].max()
     
     # Penalize greedy sampling (tends to be repetitive)
@@ -63,10 +70,15 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     merged['temp_bonus'] = merged['temperature'].apply(lambda x: 1.2 if x > 1.2 else 1.0)
     
     # Overall quality score
+    # change these multipliers to your liking:
+    PITCH_RANGE_MULT = 0.4
+    DENSITY_MULT = 0.3
+    DURATION_MULT = 0.3
+
     merged['quality_score'] = (
-        merged['pitch_range_score'] * 0.4 +
-        merged['density_score'] * 0.3 +
-        merged['duration_score'] * 0.3
+        merged['pitch_range_score'] * PITCH_RANGE_MULT +
+        merged['density_score'] * DENSITY_MULT +
+        merged['duration_score'] * DURATION_MULT
     ) * merged['strategy_bonus'] * merged['temp_bonus']
     
     # Sort by quality
@@ -91,9 +103,9 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
         if src.exists():
             dst = output_dir / f"rank{rank:02d}_{src.name}"
             shutil.copy2(src, dst)
-            print(f"   ✓ Copied to {dst}")
+            print(f"Copied to {dst}")
         else:
-            print(f"   ⚠️  File not found: {src}")
+            print(f"File not found: {src}")
         print()
     
     # Save ranking to CSV
@@ -102,7 +114,7 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
           'pitch_range', 'note_density', 'duration', 'dataset_gen']].to_csv(
         ranking_file, index=False
     )
-    print(f"✅ Rankings saved to {ranking_file}")
+    print(f"Rankings saved to {ranking_file}")
     
     # Print category winners
     print("\n" + "=" * 80)
@@ -112,14 +124,14 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     
     # Most diverse (highest pitch range)
     most_diverse = merged.nlargest(1, 'pitch_range').iloc[0]
-    print(f"🎨 Most Diverse:")
+    print(f"Most Diverse:")
     print(f"   {Path(most_diverse['output_file']).name}")
     print(f"   Pitch Range: {most_diverse['pitch_range']:.0f} semitones")
     print()
     
     # Longest
     longest = merged.nlargest(1, 'duration').iloc[0]
-    print(f"⏱️  Longest:")
+    print(f"Longest:")
     print(f"   {Path(longest['output_file']).name}")
     print(f"   Duration: {longest['duration']:.1f}s")
     print()
@@ -129,12 +141,12 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
         strategy_best = merged[merged['strategy'] == strategy].nlargest(1, 'quality_score')
         if not strategy_best.empty:
             row = strategy_best.iloc[0]
-            print(f"🎯 Best {strategy.upper()}:")
+            print(f"Best {strategy.upper()}:")
             print(f"   {Path(row['output_file']).name}")
             print(f"   Quality: {row['quality_score']:.3f}")
             print()
     
-    print(f"\n✅ All best MIDI files copied to {output_dir}/")
+    print(f"\nAll best MIDI files copied to {output_dir}/")
     print("These are ready to use in your presentation demo!")
 
 
