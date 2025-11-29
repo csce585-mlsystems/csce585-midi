@@ -154,6 +154,10 @@ The customizable features of the project will allow easy experimentation with va
   - seed_control.py         # seed control for reliability across experiments
   - seed_selection.py       # finds a seed from a dataset by looking for sequences matching criteria given by the user
   - midi_to_seed.py         # takes any midi file and turns into tokens from specified preprocessed data
+  - analyze_logs.py         # analyzes all logs and creates a report
+  - diagnose_generation.py  # takes a model and generates several MIDI files to tests the generator's output
+  - find_best_midis.py      # looks through all generated MIDI files and ranks them
+  - 
 - .coverage                 # used for coverage in pytest
 - .coveragec                # same as above
 - .gitignore                # files to ignore from version control
