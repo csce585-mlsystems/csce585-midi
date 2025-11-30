@@ -712,7 +712,7 @@ if __name__ == "__main__":
                         default="lstm", help="Type of generator architecture")
     
     # Data and training
-    parser.add_argument("--dataset", type=str, default="naive", 
+    parser.add_argument("--dataset", type=str, required=True, 
                         help="Dataset directory path or name in data/ folder (e.g. 'naive', 'miditok', 'aria_miditok')")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")

@@ -23,6 +23,48 @@ from models.discriminators.discriminator_factory import get_discriminator
 # pick device
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
+# Cache for token-to-pitch mappings (computed once per vocab)
+_token_pitch_cache = {}
+
+def build_token_pitch_cache(int_to_note, dataset):
+    """
+    Pre-compute pitch class mappings for all tokens in vocabulary.
+    This avoids calling music21.note.Note() repeatedly during generation.
+    Returns dict mapping token_idx -> list of pitch classes (0-11)
+    """
+    cache_key = (id(int_to_note), dataset)
+    if cache_key in _token_pitch_cache:
+        return _token_pitch_cache[cache_key]
+    
+    token_to_pitches = {}
+    
+    for token_idx, token_str in int_to_note.items():
+        if dataset == "miditok" or dataset == "miditok_augmented":
+            # only cache pitch tokens
+            if token_str.startswith("Pitch_"):
+                try:
+                    pitch = int(token_str.split("_")[1])
+                    token_to_pitches[token_idx] = [pitch % 12]
+                except (ValueError, IndexError):
+                    pass
+        else:  # naive
+            if '.' in token_str:  # chord
+                try:
+                    token_to_pitches[token_idx] = [int(n) % 12 for n in token_str.split('.')]
+                except ValueError:
+                    pass
+            elif token_str.isdigit():  # single note as integer
+                token_to_pitches[token_idx] = [int(token_str) % 12]
+            else:  # note name like "C4", "D#5"
+                try:
+                    n = note.Note(token_str)
+                    token_to_pitches[token_idx] = [n.pitch.midi % 12]
+                except:
+                    pass
+    
+    _token_pitch_cache[cache_key] = token_to_pitches
+    return token_to_pitches
+
 def load_discriminator(discriminator_path, model_type, pitch_dim=52, context_measures=4):
     """Load a trained discriminator model from checkpoint."""
 
@@ -61,7 +103,7 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
         tokens_per_measure = 100 # conservative estimate
         min_tokens = tokens_per_measure
 
-    else: # naive
+    else: # naive (16th notes)
         tokens_per_measure = 16
         min_tokens = 16
 
@@ -78,6 +120,7 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
 
     MIDDLE_C = 60  # MIDI number for Middle C (defalut)
 
+    # this grabs all of the pitch and chord tokens
     if dataset == "miditok" or dataset == "miditok_augmented":
         # for miditok, extract only pitch tokens
         for token_idx in recent_tokens:
@@ -160,50 +203,27 @@ def apply_discriminator_guidance(logits, discriminator, context_measures, genera
     top_chords = torch.topk(chord_probs, k=3, dim=-1).indices[0]  # get top 3 chord tone indices
 
     # boost tokens that correspond to these chord tones
+    # Use pre-computed cache for fast lookup
+    token_to_pitches = build_token_pitch_cache(int_to_note, dataset)
+    
     for chord_idx in top_chords:
         # map chord index to pitch classes
         # assuming chord_idx represents root note
         # plus chord type (major, minor, etc.) encoded in higher bits
-        root = chord_idx % 12  # get root pitch class (0-11)
+        root = (chord_idx % 12).item()  # get root pitch class (0-11) as Python int
 
         # for simplicity, major triad
-        chord_pitches = [
+        chord_pitches = set([
             root,
             (root + 4) % 12, # major 3rd
             (root + 7) % 12  # perfect 5th
-        ]
+        ])
 
         # boost logit tokens for representing these pitch classes
-        for token_idx, token_str in int_to_note.items():
-            if dataset == "miditok" or dataset == "miditok_augmented":
-                # only boost pitch tokens
-                if token_str.startswith("Pitch_"):
-                    try:
-                        pitch = int(token_str.split("_")[1])
-                        pitch_class = pitch % 12
-                        if pitch_class in chord_pitches:
-                            adjusted_logits[0, token_idx] += guidance_strength
-                    except (ValueError, IndexError):
-                        pass # skip malformed tokens
-            else: # naive
-                # check if note/chord contains any of the predicted pitches
-                if '.' in token_str: # chord
-                    # get all pitch classes in chord
-                    note_pitches = [int(n) % 12 for n in token_str.split('.')]
-                elif token_str.isdigit(): # if it's a digit, it's a single note
-                    # get the pitch class
-                    note_pitches = [int(token_str) % 12]
-                else: # single note
-                    try:
-                        # convert note name to pitch class
-                        n = note.Note(token_str)
-                        note_pitches = [n.pitch.midi % 12]
-                    except:
-                        continue
-
-                # if note contains any pitch from predicted chord, boost it
-                if any(p in chord_pitches for p in note_pitches):
-                    adjusted_logits[0, token_idx] += guidance_strength
+        for token_idx, note_pitches in token_to_pitches.items():
+            # if token contains any pitch from predicted chord, boost it
+            if any(p in chord_pitches for p in note_pitches):
+                adjusted_logits[0, token_idx] += guidance_strength
 
     return adjusted_logits
 
@@ -429,11 +449,12 @@ def generate(
     input_seq = torch.tensor(seed, dtype=torch.long).unsqueeze(0).to(DEVICE)
 
     # generate tokens (notes/chords etc.)
+    # THIS IS THE GENERATION LOOP
     for i in range(generate_length):
         # don't need gradients for inference (save time and space and just unecessary overall)
         with torch.no_grad():
             output, _ = model(input_seq) # get model's output
-            logits = output[:, -1, :] # get the logits for the last time step (the next note prediction)
+            logits = output[:, -1, :] # get the logits for the last time step (each notes likelyhood of being next)
 
             # apply discriminator guidance if available
             if discriminator is not None and i % guidance_frequency == 0:
@@ -542,7 +563,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_type", type=str, default="lstm",
                         choices=["lstm", "gru", "transformer"],
                         help="Type of generator architecture")
-    parser.add_argument("--data_dir", type=str, default=None,
+    parser.add_argument("--data_dir", type=str, default=None, required=True,
                         help="Path to where your preprocessesed data is stored.")
     parser.add_argument("--strategy", type=str, default="greedy",
                         choices=["greedy", "random", "top_k", "top_p"],
@@ -559,6 +580,8 @@ if __name__ == "__main__":
                         help="Top-p (nucleus) value (for top_p sampling)")
     parser.add_argument("--model_path", type=str, required=True,
                         help="Path to the trained model checkpoint")
+    
+    """DISCRIMINATOR OPTIONS"""
     parser.add_argument("--discriminator_path", type=str, default=None,
                         help="Path to the trained discriminator checkpoint (for guidance)")
     parser.add_argument("--discriminator_type", type=str, default=None,
@@ -567,6 +590,8 @@ if __name__ == "__main__":
                         help="Strength of discriminator guidance during generation")
     parser.add_argument("--context_measures", type=int, default=4,
                         help="Number of measures used as context for the discriminator")
+    
+    """SEED OPTIONS"""
     parser.add_argument("--seed_style", type=str, default="random",
                         choices=["random", "smart"], help="Pick whether to use random seed or select one" \
                         " based on given constraints")
@@ -580,7 +605,7 @@ if __name__ == "__main__":
                         choices=["short", "medium", "long"],
                         help="Length of seed\nshort: < 50 notes\n medium: 50-100 notes\nlong: 100+ notes")
     parser.add_argument("--seed_file", type=str, default=None,
-                        help="Filename of the MIDI file to use as seed (e.g., 'reelsa-c33.mid'). File must exist in the preprocessed dataset.")
+                        help="Filename of the MIDI file (FROM PREPROCESSESED DATASET ONLY!!!!) to use as seed (e.g., 'reelsa-c33.mid'). File must exist in the preprocessed dataset.")
     parser.add_argument("--seed_midi_file", type=str, default=None,
                         help="Path to a MIDI file to convert to a seed sequence (can be any MIDI file, not just from the dataset)")
     args = parser.parse_args()

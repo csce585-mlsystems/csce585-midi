@@ -84,11 +84,6 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
     # Sort by quality
     best = merged.nlargest(top_n, 'quality_score')
     
-    print("=" * 80)
-    print(f"TOP {top_n} GENERATED MIDI FILES FOR PRESENTATION")
-    print("=" * 80)
-    print()
-    
     for rank, (idx, row) in enumerate(best.iterrows(), 1):
         print(f"#{rank} - Quality Score: {row['quality_score']:.3f}")
         print(f"   File: {Path(row['output_file']).name}")
@@ -147,11 +142,9 @@ def find_best_midis(output_dir="presentation/best_midis", top_n=10):
             print()
     
     print(f"\nAll best MIDI files copied to {output_dir}/")
-    print("These are ready to use in your presentation demo!")
-
 
 def main():
-    parser = argparse.ArgumentParser(description="Find best generated MIDI files for presentation")
+    parser = argparse.ArgumentParser(description="Find best generated MIDI files")
     parser.add_argument("--output_dir", type=str, default="presentation/best_midis",
                         help="Directory to copy best MIDI files to")
     parser.add_argument("--top_n", type=int, default=10,

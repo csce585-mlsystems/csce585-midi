@@ -24,7 +24,7 @@ class TestMidiToSeedNaive:
     
     def test_basic_conversion(self):
         """Test basic MIDI to seed conversion with naive preprocessing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_naive"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -39,7 +39,7 @@ class TestMidiToSeedNaive:
     
     def test_truncation(self):
         """Test that long MIDI files are truncated correctly."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_naive"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -67,7 +67,7 @@ class TestMidiToSeedNaive:
     
     def test_missing_vocab(self):
         """Test handling of missing vocabulary file."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         
         if not Path(midi_file).exists():
             pytest.skip("Test data not available")
@@ -86,7 +86,7 @@ class TestMidiToSeedMiditok:
     
     def test_basic_conversion(self):
         """Test basic MIDI to seed conversion with miditok preprocessing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_miditok"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -101,7 +101,7 @@ class TestMidiToSeedMiditok:
     
     def test_truncation(self):
         """Test that long MIDI files are truncated correctly."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_miditok"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -123,7 +123,7 @@ class TestMidiToSeedAutoDetect:
     
     def test_auto_detect_naive(self):
         """Test automatic detection of naive preprocessing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_naive"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -136,7 +136,7 @@ class TestMidiToSeedAutoDetect:
     
     def test_auto_detect_miditok(self):
         """Test automatic detection of miditok preprocessing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_miditok"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():
@@ -149,16 +149,18 @@ class TestMidiToSeedAutoDetect:
     
     def test_invalid_dataset(self):
         """Test handling of dataset with no valid preprocessing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         
         if not Path(midi_file).exists():
             pytest.skip("Test data not available")
         
         seed = midi_to_seed(
             midi_file,
-            "data/nottingham-dataset-master/MIDI",  # Not a preprocessed dataset
+            "data/seeds_for_experiments",  # Not a preprocessed dataset
             seq_length=50
         )
+        
+        assert seed is None
         
         assert seed is None
 
@@ -208,7 +210,7 @@ class TestEdgeCases:
     
     def test_very_short_sequence(self):
         """Test padding of very short sequences."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         dataset = "data/nottingham-dataset-master_naive"
         
         if not Path(midi_file).exists() or not Path(dataset).exists():

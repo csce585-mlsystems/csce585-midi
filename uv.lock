@@ -196,7 +196,6 @@ dependencies = [
     { name = "pretty-midi" },
     { name = "scikit-learn" },
     { name = "seaborn" },
-    { name = "symusic" },
     { name = "torch" },
     { name = "tqdm" },
 ]
@@ -211,7 +210,6 @@ requires-dist = [
     { name = "pretty-midi", specifier = ">=0.2.10" },
     { name = "scikit-learn", specifier = ">=1.7.2" },
     { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "symusic", specifier = ">=0.5.8" },
     { name = "torch", specifier = ">=2.9.0" },
     { name = "tqdm", specifier = ">=4.66.5" },
 ]

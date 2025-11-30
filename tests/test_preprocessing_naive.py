@@ -357,7 +357,7 @@ class TestBuildDataset:
             build_dataset(
                 data_dir=str(midi_dir),
                 output_file=str(output_file),
-                seq_length=1  # Use small sequence length for testing
+                seq_length=0  # Use small sequence length for testing
             )
         
         sequences = np.load(output_file, allow_pickle=True)
@@ -391,7 +391,7 @@ class TestBuildDataset:
             build_dataset(
                 data_dir=str(midi_dir),
                 output_file=str(output_file),
-                seq_length=1  # Use small sequence length for testing
+                seq_length=0  # Use small sequence length for testing
             )
         
         sequences = np.load(output_file, allow_pickle=True)
@@ -425,7 +425,7 @@ class TestBuildDataset:
             build_dataset(
                 data_dir=str(midi_dir),
                 output_file=str(output_file),
-                seq_length=1  # Use small sequence length for testing
+                seq_length=0  # Use small sequence length for testing
             )
         
         sequences = np.load(output_file, allow_pickle=True)

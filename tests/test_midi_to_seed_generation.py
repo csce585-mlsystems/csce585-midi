@@ -68,7 +68,7 @@ class TestMidiToSeedGeneration:
     @pytest.fixture
     def sample_midi_file(self):
         """Get a sample MIDI file for testing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         if not Path(midi_file).exists():
             pytest.skip("Sample MIDI file not available")
         return midi_file
@@ -342,7 +342,7 @@ class TestMidiToSeedGeneration:
     
     def test_multiple_midis_produce_different_seeds(self, naive_model_and_data):
         """Test that different MIDI files produce different seeds."""
-        midi_files = list(Path("data/nottingham-dataset-master/MIDI").glob("*.mid"))[:3]
+        midi_files = list(Path("data/seeds_for_experiments").glob("*.mid"))[:3]
         
         if len(midi_files) < 2:
             pytest.skip("Need at least 2 MIDI files for comparison")
@@ -396,7 +396,7 @@ class TestGenerationOutput:
     @pytest.fixture
     def sample_midi_file(self):
         """Get a sample MIDI file for testing."""
-        midi_file = "data/nottingham-dataset-master/MIDI/reelsr-t64.mid"
+        midi_file = "data/seeds_for_experiments/saltcrek.mid"
         if not Path(midi_file).exists():
             pytest.skip("Sample MIDI file not available")
         return midi_file

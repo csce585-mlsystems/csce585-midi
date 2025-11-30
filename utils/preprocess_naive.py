@@ -100,11 +100,12 @@ def build_dataset(data_dir, output_file, vocab_file=None, seq_length=100):
         results = list(tqdm(pool.imap(process_file, midi_files), total=len(midi_files)))
 
     # add all of the notes
+    all_notes_flat = []
     for res in results:
-        notes.extend(res)
+        all_notes_flat.extend(res)
 
     # create mapping
-    pitchnames = sorted(set(item for item in notes))  # put all of the notes you found in here
+    pitchnames = sorted(set(item for item in all_notes_flat))  # put all of the notes you found in here
     note_to_int = dict((note, number) for number, note in enumerate(pitchnames))  # map the notes to ints
     int_to_note = dict((number, note) for number, note in enumerate(pitchnames))  # map ints to notes
 
@@ -118,26 +119,27 @@ def build_dataset(data_dir, output_file, vocab_file=None, seq_length=100):
 
     # convert notes to ints
     print("Converting notes to integers...")
-    all_ints = np.array([note_to_int[n] for n in notes], dtype=np.int32)
-
-    print("Creating sequences...")
     
-    if len(all_ints) < seq_length:
-        print(f"Warning: Total notes ({len(all_ints)}) is less than sequence length ({seq_length}). No sequences created.")
-        sequences = np.empty((0, seq_length), dtype=np.int32)
-    else:
-        # Use sliding_window_view for fast sequence generation
-        try:
-            sequences = sliding_window_view(all_ints, window_shape=seq_length)
-        except AttributeError:
-            # Fallback for older numpy versions
-            shape = (all_ints.shape[0] - seq_length + 1, seq_length)
-            strides = (all_ints.strides[0], all_ints.strides[0])
-            sequences = np.lib.stride_tricks.as_strided(all_ints, shape=shape, strides=strides)
+    # Instead of one giant sequence, we keep songs separate
+    # This prevents the "double sliding window" explosion in training
+    sequences = []
+    for song_notes in results:
+        if not song_notes:
+            continue
+        
+        # Convert song to ints
+        song_ints = [note_to_int[n] for n in song_notes]
+        
+        # Only keep songs that are long enough
+        if len(song_ints) > seq_length:
+            sequences.append(np.array(song_ints, dtype=np.int32))
+            
+    # Convert to object array (ragged array)
+    sequences = np.array(sequences, dtype=object)
 
     # save sequences
     np.save(output_file, sequences)
-    print(f"Saved {len(sequences)} sequences to {output_file}")
+    print(f"Saved {len(sequences)} songs to {output_file}")
 
 def preprocess_naive(input_dir, output_dir="data/naive", seq_length=100):
     # make the output dir if it doesn't exist
