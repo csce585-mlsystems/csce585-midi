@@ -73,43 +73,39 @@ The customizable features of the project will allow easy experimentation with va
 
 ## Contribution
 - **[Extension of Existing Work]**
-   - [Abhilash Pal, Saurav Saha, R. Anita (2020) Musenet : Music Generation using Abstractive and Generative Methods](https://www.researchgate.net/publication/363856706_Musenet_Music_Generation_using_Abstractive_and_Generative_Methods)
+   - Builds on [Abhilash Pal, Saurav Saha, R. Anita (2020) Musenet : Music Generation using Abstractive and Generative Methods](https://www.researchgate.net/publication/363856706_Musenet_Music_Generation_using_Abstractive_and_Generative_Methods)
+     by re-implementing its architecture (generator and discriminator) in a modular and extensible form.
 - **[Novel Contribution]**
-   - Gives the user the ability to experiment with the Musenet architecture
-   - Helpful utilities are contained for working with MIDI files
-   - Compares different ways of tokenizing MIDI files 
-  
-  
+   - Fully modular generation framework inspired by Musenet
+     - Implements a reproducible two-stage architecture consisting of a discriminator and an autoregressive generator, each with interchangeable model architectures (LSTM, GRU, Transformer)
+     - Factory pattern and unified training pipeline for controlled, isolatable experiments across architectures and tokenization schemes.
+   - Systematic evaluation of tokenization strategies for symbolic music generation
+     - Compares the effects of different tokenization schemes on generated music
+     - Examines how token expressiveness and dataset size interact to influence overfitting, stability, and musical structure
+   - Controlled comparison of model architectures under resource constraints
+     - Trains different model architectures on the same dataset and preprocessing pipelines
+     - Analyzes differences in generation behavior, quality, and robustness across architectures
+   - Looks at the effect of sampling strategies on musicality during generation
+     - Evaluates greedy, top-k, top-p, and temperature sampling, highlighting how decoding choices shape melodic diversity, pitch range, repitition, and overall musical structure.
+   - A practical experimentation platform for symbolic music research
+     - Provides end-to-end tools for preprocessing, augmentation, training, generation, evaluation, and logging all in one place.
 
 ## References
 [Abhilash Pal, Saurav Saha, R. Anita (2020) Musenet : Music Generation using Abstractive and Generative Methods](https://www.researchgate.net/publication/363856706_Musenet_Music_Generation_using_Abstractive_and_Generative_Methods)
 
 [Zheng Jiang (2019) Automatic Analysis of Music in Standard MIDI Files](https://www.cs.cmu.edu/~music/cmp/theses/zheng_jiang_thesis.pdf)
 
-  
-
 [Zhu, Y., Baca, J., Rekabdar, B., Rawassizadeh, R. (2023). A Survey of AI Music Generation Tools and Models](https://arxiv.org/abs/2308.12982)
-
-  
 
 [Briot, J., Hadjeres, G., Pachet, F. (2017). Deep Learning Techniques for Music Generation -- A Survey](https://arxiv.org/abs/1709.01620)
 
-  
-
 [Bhandari, K., Roy, A., Wang, K., Puri, G., Colton, S., Herremans, D. (2024). Text2midi: Generating Symbolic Music from Captions](https://arxiv.org/abs/2412.16526)
-
-  
 
 [Yang, L., Chou, S., Yang, Y. (2017). MidiNet: A Convolutional Generative Adversarial Network for Symbolic-domain Music Generation](https://arxiv.org/abs/1703.10847)
 
-  
-
 [Tian, S., Zhang, C., Yuan, W., Tan, W., Zhu, W. (2025). XMusic: Towards a Generalized and Controllable Symbolic Music Generation Framework](https://arxiv.org/abs/2501.08809)
 
-  
-
 [Colin Raffel. "Learning-Based Methods for Comparing Sequences, with Applications to Audio-to-MIDI Alignment and Matching". _PhD Thesis_, 2016](https://colinraffel.com/publications/thesis.pdf)
-
 ---  
 
 ### Hardware and Environment
