@@ -52,6 +52,7 @@ logs/training_session_*/
 # Documentation - keep locally but not in git
 docs/*.md
 
+
 # Data
 data/*
 !data/.gitkeep

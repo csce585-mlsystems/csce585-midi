@@ -381,7 +381,7 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_type", type=str, default="mlp", choices=["mlp", "lstm", "transformer"])
-    parser.add_argument("--data_dir", type=str, default="data/measures")
+    parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--context_measures", type=int, default=4)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=64)
