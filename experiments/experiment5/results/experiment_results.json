@@ -1,0 +1,597 @@
+{
+  "experiment": "discriminator_architecture_comparison",
+  "timestamp": "2025-12-01 23:33:23",
+  "config": {
+    "num_samples_per_setting": 30,
+    "generate_length": 200,
+    "seq_length": 50,
+    "guidance_strength": 0.5,
+    "generation_settings": [
+      {
+        "name": "conservative",
+        "strategy": "top_p",
+        "p": 0.85,
+        "temperature": 0.8
+      },
+      {
+        "name": "balanced",
+        "strategy": "top_p",
+        "p": 0.9,
+        "temperature": 1.0
+      },
+      {
+        "name": "creative",
+        "strategy": "top_p",
+        "p": 0.95,
+        "temperature": 1.2
+      }
+    ],
+    "data_dir": "data/nottingham-dataset-final_experiments_naive"
+  },
+  "generator": {
+    "name": "LSTM Generator (Baseline)",
+    "model_type": "lstm",
+    "model_path": "models/generators/checkpoints/nottingham-dataset-final_experiments_naive/lstm_20251129_200244.pth",
+    "description": "Two-layer LSTM generator trained on naive tokenization (Nottingham dataset)"
+  },
+  "discriminators": {
+    "none": {
+      "name": "No Discriminator (Baseline)",
+      "model_type": null,
+      "model_path": null,
+      "description": "Generator alone without discriminator guidance (control condition)"
+    },
+    "mlp": {
+      "name": "MLP Discriminator",
+      "model_type": "mlp",
+      "model_path": "models/discriminators/checkpoints/mlp/mlp_labelpitches_ctx4_ep15.pt",
+      "description": "Feedforward MLP with pitch label prediction (15 epochs)",
+      "context_measures": 4
+    },
+    "lstm": {
+      "name": "LSTM Discriminator",
+      "model_type": "lstm",
+      "model_path": "models/discriminators/checkpoints/lstm/lstm_labelpitches_ctx4_ep10.pt",
+      "description": "Recurrent LSTM with pitch label prediction (10 epochs)",
+      "context_measures": 4
+    },
+    "transformer": {
+      "name": "Transformer Discriminator",
+      "model_type": "transformer",
+      "model_path": "models/discriminators/checkpoints/transformer/transformer_labelchords_ctx4_ep6.pt",
+      "description": "Attention-based transformer with chord label prediction (6 epochs)",
+      "context_measures": 4
+    }
+  },
+  "results": {
+    "none": {
+      "conservative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 18.1,
+          "std": 2.055075018906447,
+          "min": 14.0,
+          "max": 21.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9870666666666669,
+          "std": 0.02694554178750582,
+          "min": 0.876,
+          "max": 1.0,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.103744856402245,
+          "std": 0.1970438334899984,
+          "min": 2.796373201008076,
+          "max": 3.680692843293915,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.698503669093519,
+          "std": 0.13905290064454937,
+          "min": 2.5023887427013616,
+          "max": 3.1691333616655735,
+          "n": 30
+        }
+      },
+      "balanced": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 37.233333333333334,
+          "std": 8.935634032096187,
+          "min": 19.0,
+          "max": 50.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9481333333333333,
+          "std": 0.042300302074046184,
+          "min": 0.82,
+          "max": 0.992,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.49880985064747,
+          "std": 0.18590355807458206,
+          "min": 3.0743292372613826,
+          "max": 3.951427909416392,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.9239600694792856,
+          "std": 0.136832595745423,
+          "min": 2.7052092360396927,
+          "max": 3.236485748315623,
+          "n": 30
+        }
+      },
+      "creative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 50.5,
+          "std": 2.0615528128088303,
+          "min": 44.0,
+          "max": 52.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.8254666666666668,
+          "std": 0.06275865588816326,
+          "min": 0.716,
+          "max": 0.968,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 4.558578111882429,
+          "std": 0.3351284466008907,
+          "min": 3.92423372483048,
+          "max": 5.198153990505234,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 3.278603954965598,
+          "std": 0.1389295698475826,
+          "min": 2.83443908857289,
+          "max": 3.4647698934894122,
+          "n": 30
+        }
+      }
+    },
+    "mlp": {
+      "conservative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 18.5,
+          "std": 3.1064449134018135,
+          "min": 12.0,
+          "max": 28.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9790666666666666,
+          "std": 0.03368375803789648,
+          "min": 0.864,
+          "max": 1.0,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.151916161799488,
+          "std": 0.20591322337906584,
+          "min": 2.538840721335691,
+          "max": 3.524538570266225,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.727982769143396,
+          "std": 0.1160646522077187,
+          "min": 2.4203826745449817,
+          "max": 3.0656679727779896,
+          "n": 30
+        }
+      },
+      "balanced": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 40.233333333333334,
+          "std": 10.223121941081512,
+          "min": 16.0,
+          "max": 52.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9549333333333333,
+          "std": 0.047384198022359963,
+          "min": 0.812,
+          "max": 1.0,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.5210721046293667,
+          "std": 0.3035565506957047,
+          "min": 3.031357684567021,
+          "max": 4.284289475529161,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.871925950447247,
+          "std": 0.14832323956522522,
+          "min": 2.6641387392790703,
+          "max": 3.2421161296320506,
+          "n": 30
+        }
+      },
+      "creative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 49.96666666666667,
+          "std": 1.7413277182145306,
+          "min": 44.0,
+          "max": 52.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.8905333333333333,
+          "std": 0.043432501910691514,
+          "min": 0.776,
+          "max": 0.96,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 4.374307483182041,
+          "std": 0.2792286142701534,
+          "min": 3.8901437234749032,
+          "max": 5.0034662620677395,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 3.130822043239706,
+          "std": 0.10869859491805527,
+          "min": 2.9358234485034327,
+          "max": 3.381017167540434,
+          "n": 30
+        }
+      }
+    },
+    "lstm": {
+      "conservative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 19.3,
+          "std": 3.4365680554879168,
+          "min": 12.0,
+          "max": 33.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9802666666666667,
+          "std": 0.0306016702521647,
+          "min": 0.888,
+          "max": 1.0,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.116491543934443,
+          "std": 0.25694677773299324,
+          "min": 2.60125103939731,
+          "max": 3.5835595580831625,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.702985092082171,
+          "std": 0.14772506132622876,
+          "min": 2.418678282568186,
+          "max": 3.086540422988373,
+          "n": 30
+        }
+      },
+      "balanced": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 38.53333333333333,
+          "std": 9.694442852594584,
+          "min": 19.0,
+          "max": 51.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.9678666666666664,
+          "std": 0.027099487490028693,
+          "min": 0.9,
+          "max": 0.996,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 3.4045515043785586,
+          "std": 0.21264895062813885,
+          "min": 3.0652355304932755,
+          "max": 3.9692525147980713,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 2.8216877204142556,
+          "std": 0.12504155137924186,
+          "min": 2.6210573638347974,
+          "max": 3.170553089676551,
+          "n": 30
+        }
+      },
+      "creative": {
+        "num_notes": {
+          "mean": 250.0,
+          "std": 0.0,
+          "min": 250.0,
+          "max": 250.0,
+          "n": 30
+        },
+        "duration": {
+          "mean": 62.5,
+          "std": 0.0,
+          "min": 62.5,
+          "max": 62.5,
+          "n": 30
+        },
+        "note_density": {
+          "mean": 4.0,
+          "std": 0.0,
+          "min": 4.0,
+          "max": 4.0,
+          "n": 30
+        },
+        "pitch_range": {
+          "mean": 50.43333333333333,
+          "std": 2.011356645539412,
+          "min": 44.0,
+          "max": 52.0,
+          "n": 30
+        },
+        "avg_polyphony": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "n": 30
+        },
+        "scale_consistency": {
+          "mean": 0.8817333333333334,
+          "std": 0.0491168221918135,
+          "min": 0.724,
+          "max": 0.96,
+          "n": 30
+        },
+        "pitch_entropy": {
+          "mean": 4.355004943570938,
+          "std": 0.36810640270814765,
+          "min": 3.7962496232707537,
+          "max": 5.192977280661844,
+          "n": 30
+        },
+        "pitch_class_entropy": {
+          "mean": 3.14021556453943,
+          "std": 0.12587522118119596,
+          "min": 2.913802021993943,
+          "max": 3.3881912939023806,
+          "n": 30
+        }
+      }
+    },
+    "transformer": {}
+  }
+}
