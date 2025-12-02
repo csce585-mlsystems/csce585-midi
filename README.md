@@ -158,7 +158,11 @@ The customizable features of the project will allow easy experimentation with va
   - analyze_logs.py         # analyzes all logs and creates a report
   - diagnose_generation.py  # takes a model and generates several MIDI files to tests the generator's output
   - find_best_midis.py      # looks through all generated MIDI files and ranks them
-  - 
+- experiments/              # code that runs and plots experiments for final report and slides
+  - experiment1/           
+  - experiment2/
+  - experiment3/
+  - experiment4/
 - .coverage                 # used for coverage in pytest
 - .coveragec                # same as above
 - .gitignore                # files to ignore from version control
