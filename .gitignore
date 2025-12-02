@@ -52,6 +52,8 @@ logs/training_session_*/
 # Documentation - keep locally but not in git
 docs/*.md
 
+exeriments/*/*.mid
+experiments/*/*.midi
 
 # Data
 data/*
