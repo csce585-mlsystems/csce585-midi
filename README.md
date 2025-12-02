@@ -206,6 +206,8 @@ The dataset should be at: `data/nottingham-dataset-master/MIDI/*.mid` (~1200 fol
 
 ### 3. Install Dependencies and Activate
 
+Please view this [wiki page](https://github.com/csce585-mlsystems/csce585-midi/wiki/Dependencies) if you have issues with dependencies.
+
 ```bash
 uv sync
 source  .venv/bin/activate
