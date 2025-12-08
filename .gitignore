@@ -92,3 +92,5 @@ logs/
 /models/**/*.pt*.npy
 aria_miditok/
 *.npy
+docs/Final_Submission/Final presentation demo.mp4
+docs/Final_Submission/FinalVideo.mov
